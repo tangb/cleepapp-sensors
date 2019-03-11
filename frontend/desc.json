@@ -1,0 +1,11 @@
+{
+    "icon": "chip",
+    "global": {
+        "js": ["motion.widget.js", "temperature.widget.js", "sensors.service.js"],
+        "html": ["motion.widget.html", "temperature.widget.html"]
+    },
+    "config": {
+        "js": ["sensors.config.js"],
+        "html": ["sensors.config.html", "addSensor.dialog.html"]
+    }
+}

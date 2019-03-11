@@ -1,0 +1,29 @@
+<div>
+
+<md-card class="widget-bg-color" style="width: 250px;">
+    <md-card-header>
+        <md-card-avatar>
+            <md-icon md-svg-icon="thermometer"></md-icon>
+        </md-card-avatar>
+        <md-card-header-text>
+            <span class="md-title">{{widgetCtl.device.name}}</span>
+            <span class="md-subhead">{{widgetCtl.device.type | firstUpper}}</span>
+        </md-card-header-text>
+    </md-card-header>
+    <md-card-content layout="row" layout-align="space-around center" md-colors="{{widgetCtl.device.__widget.mdcolors}}">
+        <div>
+            <span class="md-display-1">{{widgetCtl.device.celsius | temperature:'celsius'}}</span>
+        </div>
+    </md-card-content> 
+    <md-card-actions layout="column" layout-align="start" ng-if="widgetCtl.hasDatabase">
+        <div layout="column" layout-align="start" graph-button device="widgetCtl.device" graph-options="widgetCtl.graphOptions" button-label="Chart" button-class="md-raised"></div>
+    </md-card-actions>
+    <md-card-footer>
+        <md-icon md-svg-icon="clock">
+            <md-tooltip md-direction="top">Last update</md-tooltip>
+        </md-icon>
+        <span>{{widgetCtl.device.lastupdate | hrDatetime:true}}</span>
+    </md-card-footer>
+</md-card>
+
+</div>
