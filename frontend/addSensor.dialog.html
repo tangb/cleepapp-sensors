@@ -90,6 +90,31 @@
 
             </div>
 
+            <!-- dht22 temperature/humidity -->
+            <div ng-if="sensorsCtl.type===sensorsCtl.TYPE_MULTI_DHT22">
+
+                <div gpios-pins-config readonly="sensorsCtl.updateDevice" selected-gpios="sensorsCtl.selectedGpios"></div>
+                <div layout-gt-sm="row">
+                    <md-input-container class="md-block" flex-gt-sm>
+                        <label>Interval</label>
+                        <md-select ng-model="sensorsCtl.interval">
+                            <md-option ng-repeat="interval in sensorsCtl.intervals" ng-value="interval.value">{{interval.label}}</md-option>
+                        </md-select>
+                    </md-input-container>
+                    <md-input-container class="md-block" flex-gt-sm>
+                        <label>Temperature offset</label>
+                        <input type="number" min="0" ng-model="sensorsCtl.offset">
+                    </md-input-container>
+                    <md-input-container class="md-block" flex-gt-sm>
+                        <label>Temperature offset type</label>
+                        <md-select ng-model="sensorsCtl.offsetUnit">
+                            <md-option ng-repeat="offset in sensorsCtl.offsetUnits" ng-value="offset.value">{{offset.label}}</md-option>
+                        </md-select>
+                    </md-input-container>
+                </div>
+
+            </div>
+
         </div>
         </md-dialog-content>
 

@@ -67,6 +67,17 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
     };
 
     /**
+     *
+     */
+    self.addDht22Sensor = function(name, gpio, interval, offset, offsetUnit) {
+        return rpcService.sendCommand('add_dht22', 'sensors', {'name':name, 'gpio':gpio, 'interval':interval, 'offset':offset, 'offset_unit':offsetUnit});
+    };
+
+    self.test = function() {
+        return rpcService.sendCommand('get_module_infos', 'inventory', {'module': 'sensors'});
+    }
+
+    /**
      * Delete sensor
      */
     self.deleteSensor = function(uuid) {
@@ -137,6 +148,21 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
                 raspiotService.devices[i].lastupdate = params.lastupdate;
                 raspiotService.devices[i].celsius = params.celsius;
                 raspiotService.devices[i].fahrenheit = params.fahrenheit;
+                break;
+            }   
+        }   
+    });
+
+    /**
+     * Catch humidity events
+     */
+    $rootScope.$on('sensors.humidity.update', function(event, uuid, params) {
+        for( var i=0; i<raspiotService.devices.length; i++ )
+        {   
+            if( raspiotService.devices[i].uuid===uuid )
+            {   
+                raspiotService.devices[i].lastupdate = params.lastupdate;
+                raspiotService.devices[i].humidity = params.humidity;
                 break;
             }   
         }   

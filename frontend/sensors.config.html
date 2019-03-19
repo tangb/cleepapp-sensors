@@ -18,11 +18,14 @@
         <md-list-item ng-repeat="device in sensorsCtl.devices | filterDeviceByService:'sensors'" class="md-2-line">
 
             <!-- icon -->
-            <md-icon md-svg-icon="thermometer" ng-if="device.type==='temperature'">
+            <md-icon md-svg-icon="thermometer" class="icon-md" ng-if="device.type==='temperature'">
                 <md-tooltip>Temperature sensor</md-tooltip>
             </md-icon>
-            <md-icon md-svg-icon="motion-sensor" ng-if="device.type==='motion'">
+            <md-icon md-svg-icon="motion-sensor" class="icon-md" ng-if="device.type==='motion'">
                 <md-tooltip>Motion sensor</md-tooltip>
+            </md-icon>
+            <md-icon md-svg-icon="water-percent" class="icon-md" ng-if="device.type==='humidity'">
+                <md-tooltip>Humidity sensor</md-tooltip>
             </md-icon>
 
             <!-- general infos -->
@@ -50,14 +53,19 @@
             </div>
 
             <!-- temperature sensor -->
-            <div class="md-secondary" ng-if="device.type==='temperature'">
-                <p ng-if="device.offsetunit==='celsius'">Offset: {{device.offsetcelsius}}°C</p>
-                <p ng-if="device.offsetunit==='fahrenheit'">Offset: {{device.offsetfahrenheit}}°F</p>
-                <p>Interval: {{device.interval/60}} mins</p>
+            <div class="md-secondary md-secondary-rpadding" ng-if="device.type==='temperature'">
+                <p ng-if="device.offsetunit==='celsius'" class="margin-v-5px">Offset: {{device.offsetcelsius}}°C</p>
+                <p ng-if="device.offsetunit==='fahrenheit'" class="margin-v-5px">Offset: {{device.offsetfahrenheit}}°F</p>
+                <p class="margin-v-5px">Interval: {{device.interval/60}} mins</p>
             </div>
-            <div class="md-secondary" ng-if="device.type==='temperature'">
-                <span ng-if="device.offsetunit==='celsius'">{{device.celsius}}°C</span>
-                <span ng-if="device.offsetunit==='fahrenheit'">{{device.fahrenheit}}°F</span>
+            <div class="md-secondary md-secondary-rpadding" ng-if="device.type==='temperature'">
+                <span ng-if="device.offsetunit==='celsius'">{{device.celsius ? device.celsius : '?'}}°C</span>
+                <span ng-if="device.offsetunit==='fahrenheit'">{{device.fahrenheit ? device.fahrenheit : '?'}}°F</span>
+            </div>
+
+            <!-- humidity sensor -->
+            <div class="md-secondary md-secondary-rpadding" ng-if="device.type==='humidity'">
+                <span>{{device.humidity ? device.humidity : '?'}}%</span>
             </div>
 
             <!-- actions -->

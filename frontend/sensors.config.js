@@ -30,9 +30,11 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         self.offsetUnit = self.offsetUnits[0].value;
         self.TYPE_MOTION_GENERIC = 'motion_generic';
         self.TYPE_TEMPERATURE_ONEWIRE = 'temperature_onewire';
+        self.TYPE_MULTI_DHT22 = 'multi_dht22';
         self.types = [
             {label:'Motion', value:self.TYPE_MOTION_GENERIC},
-            {label:'Temperature (onewire)', value:self.TYPE_TEMPERATURE_ONEWIRE}
+            {label:'Temperature (onewire)', value:self.TYPE_TEMPERATURE_ONEWIRE},
+            {label:'Multi temperature/humidity sensor (DHT22)', value:self.TYPE_MULTI_DHT22}
         ];
         self.type = self.TYPE_MOTION_GENERIC;
         self.updateDevice = false;
@@ -110,6 +112,10 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
                     {
                         return sensorsService.addOnewireTemperatureSensor(self.name, self.onewire.device, self.onewire.path, self.interval, self.offset, self.offsetUnit, 'GPIO4');
                     }
+                    else if( self.type===self.TYPE_MULTI_DHT22 )
+                    {
+                        return sensorsService.addDht22Sensor(self.name, self.selectedGpios[0].gpio, self.interval, self.offset, self.offsetUnit);
+                    }
                 })
                 .then(function() {
                     return raspiotService.reloadDevices();
@@ -141,6 +147,13 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
                 self.offset = device.offset;
                 self.offsetUnit = device.offsetunit;
             }
+            else if( self.type===self.TYPE_MULTI_DHT22 )
+            {
+                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'data'}];
+                self.interval = device.interval;
+                self.offset = device.offset;
+                self.offsetUnit = device.offsetunit;
+            }
 
             //open dialog
             self.updateDevice = true;
@@ -153,6 +166,10 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
                     else if( self.type===self.TYPE_TEMPERATURE_ONEWIRE )
                     {
                         return sensorsService.updateOnewireTemperatureSensor(device.uuid, self.name, self.interval, self.offset, self.offsetUnit);
+                    }
+                    else if( self.type===self.TYPE_MULTI_DHT22 )
+                    {
+                        return sensorsService.updateDht22Sensor(device.uuid, self.name, self.interval, self.offset, self.offsetUnit);
                     }
                 })
                 .then(function() {
