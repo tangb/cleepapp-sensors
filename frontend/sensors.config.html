@@ -4,7 +4,7 @@
         <md-subheader class="md-no-sticky">Configured sensors</md-subheader>
 
         <!-- no item -->
-        <md-list-item ng-if="(sensorsCtl.devices | filterDeviceByService:'sensors').length===0">
+        <md-list-item ng-if="(sensorsCtl.devices | filterDeviceByModule:'sensors').length===0">
             <p>
                 No sensor configured, click on
                 <md-button class="md-fab md-mini md-accent default-cursor" aria-label="Add sensor">
@@ -15,7 +15,7 @@
         </md-list-item>
 
         <!-- item list -->
-        <md-list-item ng-repeat="device in sensorsCtl.devices | filterDeviceByService:'sensors'" class="md-2-line">
+        <md-list-item ng-repeat="device in sensorsCtl.devices | filterDeviceByModule:'sensors'" class="md-2-line">
 
             <!-- icon -->
             <md-icon md-svg-icon="thermometer" class="icon-md" ng-if="device.type==='temperature'">
