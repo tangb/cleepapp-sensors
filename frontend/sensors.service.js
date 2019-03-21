@@ -67,14 +67,17 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
     };
 
     /**
-     *
+     * Add DHT22 sensor
      */
     self.addDht22Sensor = function(name, gpio, interval, offset, offsetUnit) {
         return rpcService.sendCommand('add_dht22', 'sensors', {'name':name, 'gpio':gpio, 'interval':interval, 'offset':offset, 'offset_unit':offsetUnit});
     };
 
-    self.test = function() {
-        return rpcService.sendCommand('get_module_infos', 'inventory', {'module': 'sensors'});
+    /**
+     * Update DHT22 sensor
+     */
+    self.updateDht22Sensor = function(uuid, name, interval, offset, offsetUnit) {
+        return rpcService.sendCommand('update_dht22', 'sensors', {'uuid':uuid, 'name':name, 'interval':interval, 'offset':offset, 'offset_unit':offsetUnit});
     }
 
     /**

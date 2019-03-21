@@ -4,7 +4,7 @@
 
         <md-toolbar>
             <div class="md-toolbar-tools">
-                <h2>Add new sensor</h2>
+                <h2>Update sensor</h2>
                 <span flex></span>
                 <md-button class="md-icon-button" ng-click="sensorsCtl.cancelDialog()" aria-label="Close dialog">
                     <md-icon md-svg-icon="close"></md-icon>
@@ -24,41 +24,46 @@
             <!-- type -->
             <md-input-container class="md-block" flex-gt-sm>
                 <label>Type</label>
-                <md-select ng-model="sensorsCtl.type">
+                <md-select ng-model="sensorsCtl.type" ng-disabled="true">
                     <md-option ng-repeat="type in sensorsCtl.types" ng-value="type.value">{{type.label}}</md-option>
                 </md-select>
             </md-input-container>
 
-            <!-- HARDWARE CONFIGURATION -->
-            <div ng-if="sensorsCtl.type.subtype!==sensorsCtl.SUBTYPE_ONEWIRE">
-                <!-- gpio configuration -->
-                <div gpios-pins-config readonly="sensorsCtl.updateDevice" selected-gpios="sensorsCtl.selectedGpios"></div>
+            <!-- motion -->
+            <div ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_MOTION && sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_GENERIC">
+                <div gpios-pins-config readonly="true" selected-gpios="sensorsCtl.selectedGpios"></div>
+                <md-input-container class="md-block" flex-gt-sm>
+                    <md-checkbox ng-model="sensorsCtl.inverted" aria-label="Revert state">
+                        State is inverted?
+                    </md-checkbox>
+                </md-input-container>
             </div>
-            <div ng-if="sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_ONEWIRE">
-                <!-- onewire configuration -->
+
+            <!-- temperature -->
+            <div ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_TEMPERATURE && sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_ONEWIRE">
 
                 <!-- driver not installed -->
-                <div layout-gt-sm="row" ng-if="!sensorsCtl.driverOnewire">
+                <div layout-gt-sm="row" ng-if="sensorsCtl.subtype===sensorsCtl.SUBTYPE_ONEWIRE && !sensorsCtl.driverOnewire">
                     <div class="padding-row-with-input">
                         <span>Onewire driver is not installed</span>
                     </div>
                     <div>
                         <md-button class="md-raised md-primary" ng-disabled="sensorsCtl.installingDriver" ng-click="sensorsCtl.installOnewire()">
-                            Install drivers
+                            Install driver
                         </md-button>
                     </div>
                 </div>
 
                 <!-- driver installed -->
-                <div layout-gt-sm="row" ng-if="sensorsCtl.driverOnewire">
+                <div layout-gt-sm="row" ng-if="sensorsCtl.subtype===sensorsCtl.SUBTYPE_ONEWIRE && sensorsCtl.driverOnewire">
                     <div>
-                        <md-button class="md-raised md-primary" ng-disabled="sensorsCtl.updateDevice" ng-click="sensorsCtl.getOnewires()">
+                        <md-button class="md-raised md-primary" ng-disabled="true" ng-click="sensorsCtl.getOnewires()">
                             Scan onewire bus
                         </md-button>
                     </div>
                     <md-input-container class="md-block" flex-gt-sm>
                         <label>Onewire devices found</label>
-                        <md-select ng-model="sensorsCtl.onewire" ng-disabled="sensorsCtl.updateDevice">
+                        <md-select ng-model="sensorsCtl.onewire" ng-disabled="true">
                             <md-option ng-disabled="onewire.disable" ng-repeat="onewire in sensorsCtl.onewires" ng-value="onewire">{{onewire.device}}</md-option>
                         </md-select>
                     </md-input-container>
@@ -66,9 +71,9 @@
 
             </div>
 
-            <!-- SOFTWARE CONFIGURATION -->
-            <div ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_TEMPERATURE || sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_DHT22">
-                <!-- temperature sensor -->
+            <!-- temperature parameters -->
+            <div ng-if="sensorsCtl.type.type.type===sensorsCtl.TYPE_TEMPERATURE">
+
                 <div layout-gt-sm="row">
                     <md-input-container class="md-block" flex-gt-sm>
                         <label>Interval</label>
@@ -87,14 +92,7 @@
                         </md-select>
                     </md-input-container>
                 </div>
-            </div>
-            <div ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_MOTION && sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_GENERIC">
-                <!-- motion -->
-                <md-input-container class="md-block" flex-gt-sm>
-                    <md-checkbox ng-model="sensorsCtl.inverted" aria-label="Revert state">
-                        State is inverted?
-                    </md-checkbox>
-                </md-input-container>
+
             </div>
 
         </div>
@@ -103,7 +101,7 @@
         <md-dialog-actions layout="row">
             <span flex></span>
             <md-button ng-click="sensorsCtl.closeDialog()" aria-label="Close dialog">
-                <span>Add</span>
+                <span>Update</span>
             </md-button>
         </md-dialog-actions>
 

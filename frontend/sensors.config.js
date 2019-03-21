@@ -28,22 +28,35 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
             {label:'Fahrenheit', value:'fahrenheit'}
         ];
         self.offsetUnit = self.offsetUnits[0].value;
-        self.TYPE_MOTION_GENERIC = 'motion_generic';
-        self.TYPE_TEMPERATURE_ONEWIRE = 'temperature_onewire';
-        self.TYPE_MULTI_DHT22 = 'multi_dht22';
+        self.TYPE_MULTI = 'multi'
+        self.TYPE_MOTION = 'motion';
+        self.TYPE_TEMPERATURE = 'temperature';
+        self.TYPE_HUMIDITY = 'humidity';
+        self.SUBTYPE_GENERIC = 'generic';
+        self.SUBTYPE_ONEWIRE = 'onewire';
+        self.SUBTYPE_DHT22 = 'dht22';
         self.types = [
-            {label:'Motion', value:self.TYPE_MOTION_GENERIC},
-            {label:'Temperature (onewire)', value:self.TYPE_TEMPERATURE_ONEWIRE},
-            {label:'Multi temperature/humidity sensor (DHT22)', value:self.TYPE_MULTI_DHT22}
+            {label:'Motion', value:{type:self.TYPE_MOTION, subtype:self.SUBTYPE_GENERIC}},
+            {label:'Temperature (onewire)', value:{type:self.TYPE_TEMPERATURE, subtype:self.SUBTYPE_ONEWIRE}},
+            {label:'Temperature+humidity sensor (DHT22)', value:{type:self.TYPE_MULTI, subtype:self.SUBTYPE_DHT22}}
         ];
-        self.type = self.TYPE_MOTION_GENERIC;
-        self.updateDevice = false;
+        self.type = self.types[0].value;
 
         /**
-         * Return sensor type
+         * Return sensor type according to types member
          */
         self._getSensorType = function(sensor) {
-            return sensor.type + '_' + sensor.subtype;
+            console.log(sensor.type, sensor.subtype);
+            console.log(self.types);
+            for( type of self.types ) {
+                if( type.type===sensor.type && type.subtype===sensor.subtype ) {
+                    return type.value;
+                }
+            }
+
+            //type not found, return default one
+            console.error('No sensor type found, return default value');
+            return self.types[0].value;
         };
 
         /** 
@@ -53,7 +66,7 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
             self.name = ''; 
             self.selectedGpios = [{'gpio':null, 'label':'wire'}];
             self.inverted = false;
-            self.type = self.TYPE_MOTION_GENERIC;
+            self.type = self.types[0].value;
             self.interval = self.intervals[1].value;
             self.offset = 0;
             self.offsetUnit = self.offsetUnits[0].value;
@@ -86,11 +99,11 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         /**
          * Open dialog (internal use)
          */
-        self._openDialog = function() {
+        self._openDialog = function(update) {
             return $mdDialog.show({
                 controller: function() { return self; },
                 controllerAs: 'sensorsCtl',
-                templateUrl: 'addSensor.dialog.html',
+                templateUrl: update ? 'updateSensor.dialog.html' : 'addSensor.dialog.html',
                 parent: angular.element(document.body),
                 clickOutsideToClose: false,
                 fullscreen: true
@@ -101,18 +114,18 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
          * Add device
          */
         self.openAddDialog = function() {
-            self.updateDevice = false;
-            self._openDialog()
+            self._resetValues();
+            self._openDialog(false)
                 .then(function() {
-                    if( self.type===self.TYPE_MOTION_GENERIC )
+                    if( self.type===self.TYPE_MOTION )
                     {
                         return sensorsService.addGenericMotionSensor(self.name, self.selectedGpios[0].gpio, self.inverted);
                     }
-                    else if( self.type===self.TYPE_TEMPERATURE_ONEWIRE )
+                    else if( self.type===self.TYPE_TEMPERATURE && self.subtype===self.SUBTYPE_ONEWIRE )
                     {
                         return sensorsService.addOnewireTemperatureSensor(self.name, self.onewire.device, self.onewire.path, self.interval, self.offset, self.offsetUnit, 'GPIO4');
                     }
-                    else if( self.type===self.TYPE_MULTI_DHT22 )
+                    else if( self.type===self.TYPE_MULTI && self.subtype===self.SUBTYPE_DHT22 )
                     {
                         return sensorsService.addDht22Sensor(self.name, self.selectedGpios[0].gpio, self.interval, self.offset, self.offsetUnit);
                     }
@@ -133,41 +146,38 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
          */
         self.openUpdateDialog = function(device) {
             //set editor's value
-            var oldName = device.name;
             self.name = device.name;
             self.type = self._getSensorType(device);
-            if( self.type===self.TYPE_MOTION_GENERIC )
+            if( self.type.type===self.TYPE_MOTION )
             {
-                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'motion wire'}];
+                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'data'}];
                 self.inverted = device.inverted;
             }
-            else if( self.type===self.TYPE_TEMPERATURE_ONEWIRE )
-            {
-                self.interval = device.interval;
-                self.offset = device.offset;
-                self.offsetUnit = device.offsetunit;
-            }
-            else if( self.type===self.TYPE_MULTI_DHT22 )
+            else if( self.type.type===self.TYPE_TEMPERATURE )
             {
                 self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'data'}];
                 self.interval = device.interval;
                 self.offset = device.offset;
                 self.offsetUnit = device.offsetunit;
             }
+            else if( self.type.type===self.TYPE_HUMIDITY )
+            {
+                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'data'}];
+                self.interval = device.interval;
+            }
 
             //open dialog
-            self.updateDevice = true;
-            self._openDialog()
+            self._openDialog(true)
                 .then(function() {
-                    if( self.type===self.TYPE_MOTION_GENERIC )
+                    if( self.type.type===self.TYPE_MOTION )
                     {
                         return sensorsService.updateGenericMotionSensor(device.uuid, self.name, self.inverted);
                     }
-                    else if( self.type===self.TYPE_TEMPERATURE_ONEWIRE )
+                    else if( self.type.type===self.TYPE_TEMPERATURE && self.type.subtype===self.SUBTYPE_ONEWIRE )
                     {
                         return sensorsService.updateOnewireTemperatureSensor(device.uuid, self.name, self.interval, self.offset, self.offsetUnit);
                     }
-                    else if( self.type===self.TYPE_MULTI_DHT22 )
+                    else if( self.type.subtype===self.SUBTYPE_DHT22)
                     {
                         return sensorsService.updateDht22Sensor(device.uuid, self.name, self.interval, self.offset, self.offsetUnit);
                     }

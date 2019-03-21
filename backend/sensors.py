@@ -224,22 +224,22 @@ class Sensors(RaspIotModule):
         Returns:
             bool: True if deletion succeed
         """
-        device = self._get_device(uuid)
+        sensor = self._get_device(uuid)
         if not uuid:
             raise MissingParameter(u'Uuid parameter is missing')
-        elif device is None:
-            raise InvalidParameter(u'Sensor "%s" doesn\'t exist' % name)
+        elif sensor is None:
+            raise InvalidParameter(u'Sensor with uuid "%s" doesn\'t exist' % uuid)
         else:
             #stop task if necessary
-            self.__stop_sensor_task(device)
+            self.__stop_sensor_task(sensor)
 
             #unconfigure gpios
-            for gpio in device[u'gpios']:
+            for gpio in sensor[u'gpios']:
                 #is a reserved gpio (onewire?)
                 resp = self.send_command(u'is_reserved_gpio', u'gpios', {u'uuid': gpio[u'gpio_uuid']})
                 self.logger.debug(u'is_reserved_gpio: %s' % resp)
                 if not resp:
-                    raise CommandError(u'No reponse')
+                    raise CommandError(u'No response')
                 elif resp[u'error']:
                     raise CommandError(resp[u'message'])
                 reserved_gpio = resp[u'data']
@@ -248,7 +248,7 @@ class Sensors(RaspIotModule):
                 delete_gpio = True
                 if not reserved_gpio and self.__get_gpio_uses(gpio[u'gpio'])>1:
                     #more than one devices are using this gpio, disable gpio unconfiguration
-                    self.logger.debug(u'More than one device is using gpio, disable gpio deletion')
+                    self.logger.debug(u'More than one sensor is using gpio, disable gpio deletion')
                     delete_gpio = False
 
                 #unconfigure gpio
@@ -263,9 +263,9 @@ class Sensors(RaspIotModule):
                     self.logger.debug(u'Gpio device not deleted because other sensor is using it')
 
             #sensor is valid, remove it
-            if not self._delete_device(device[u'uuid']):
+            if not self._delete_device(sensor[u'uuid']):
                 raise CommandError(u'Unable to delete sensor')
-            self.logger.debug(u'Device %s deleted successfully' % uuid)
+            self.logger.debug(u'Sensor %s deleted successfully' % uuid)
 
         return True
 
@@ -441,7 +441,7 @@ class Sensors(RaspIotModule):
 
         return onewires
 
-    def __read_onewire_temperature(self, sensor):
+    def _read_onewire_temperature(self, sensor):
         """
         Read temperature from 1wire device
         
@@ -484,7 +484,7 @@ class Sensors(RaspIotModule):
 
             else:
                 #onewire device doesn't exist
-                raise Exception(u'Onewire device %s doesn\'t exist anymore' % sensor[u'path'])
+                raise Exception(u'Onewire device %s doesn\'t exist' % sensor[u'path'])
 
         except:
             self.logger.exception(u'Unable to read 1wire device file "%s":' % sensor[u'path'])
@@ -503,7 +503,7 @@ class Sensors(RaspIotModule):
             sensor (dict): sensor data
         """
         if sensor[u'subtype']==self.SUBTYPE_ONEWIRE:
-            (tempC, tempF) = self.__read_onewire_temperature(sensor)
+            (tempC, tempF) = self._read_onewire_temperature(sensor)
             self.logger.debug(u'Read temperature: %s°C - %s°F' % (tempC, tempF))
             if tempC is not None and tempF is not None:
                 #temperature values are valid, update sensor values
@@ -557,7 +557,7 @@ class Sensors(RaspIotModule):
             gpio (string): onewire gpio (for now this parameter is useless because forced to default onewire gpio GPIO4)
 
         Returns:
-            bool: True if sensor added
+            dict: created sensor data
         """
         #check values
         if name is None or len(name)==0:
@@ -582,11 +582,15 @@ class Sensors(RaspIotModule):
             raise InvalidParameter(u'Offset_unit must be equal to "celsius" or "fahrenheit"')
         elif gpio is None or len(gpio)==0:
             raise MissingParameter(u'Gpio parameter is missing')
-        else:
+
+        gpio_device = None
+        sensor_device = None
+        try:
             #compute offsets
             (offsetC, offsetF) = self.__compute_temperature_offset(offset, offset_unit)
 
             #configure gpio
+            #TODO reserve gpio when driver is installed !
             params = {
                 u'name': name + u'_onewire',
                 u'gpio': gpio,
@@ -595,12 +599,12 @@ class Sensors(RaspIotModule):
             resp_gpio = self.send_command(u'reserve_gpio', u'gpios', params)
             if resp_gpio[u'error']:
                 raise CommandError(resp_gpio[u'message'])
-            resp_gpio = resp_gpio[u'data']
+            gpio_device = resp_gpio[u'data']
 
             #sensor is valid, save new entry
             sensor = {
                 u'name': name,
-                u'gpios': [{'gpio':gpio, 'gpio_uuid':resp_gpio['uuid'], u'pin':gpio_device[u'pin']}],
+                u'gpios': [{'gpio':gpio, 'gpio_uuid':gpio_device['uuid'], u'pin':gpio_device[u'pin']}],
                 u'device': device,
                 u'path': path,
                 u'type': self.TYPE_TEMPERATURE,
@@ -616,17 +620,28 @@ class Sensors(RaspIotModule):
             }
 
             #read temperature
-            (tempC, tempF) = self.__read_onewire_temperature(sensor)
+            (tempC, tempF) = self._read_onewire_temperature(sensor)
             sensor[u'celsius'] = tempC
             sensor[u'fahrenheit'] = tempF
 
             #save sensor
-            sensor = self._add_device(sensor)
+            sensor_device = self._add_device(sensor)
+            if not sensor_device:
+                raise CommandError(u'Unable to add temperature sensor')
 
             #launch temperature reading task
             self.__start_sensor_task(sensor)
 
-        return True
+        except Exception as e:
+            if gpio_device:
+                self.send_command(u'delete_gpio', u'gpios', {u'uuid': gpio_device[u'uuid']})
+            if sensor_device:
+                self._delete_sensor(sensor_device[u'uuid'])
+
+            self.logger.exception(u'Error while adding temperature sensor:')
+            raise CommandError(unicode(e))
+
+        return sensor_device
 
     def update_temperature_onewire(self, uuid, name, interval, offset, offset_unit):
         """
@@ -663,7 +678,8 @@ class Sensors(RaspIotModule):
             raise MissingParameter(u'Offset_unit paramter is missing')
         elif offset_unit not in (u'celsius', u'fahrenheit'):
             raise InvalidParameter(u'Offset_unit must be equal to "celsius" or "fahrenheit"')
-        else:
+
+        try:
             #compute offsets
             (offsetC, offsetF) = self.__compute_temperature_offset(offset, offset_unit)
 
@@ -680,6 +696,10 @@ class Sensors(RaspIotModule):
             #stop and launch temperature reading task
             self.__stop_sensor_task(sensor)
             self.__start_sensor_task(sensor)
+
+        except Exception as e:
+            self.logger.exception(u'Error while updating temperature sensor:')
+            raise CommandError(unicode(e))
 
         return True
 
@@ -703,8 +723,10 @@ class Sensors(RaspIotModule):
         assigned_gpios = self.get_assigned_gpios()
 
         #check values
-        if not name:
+        if name is None or len(name)==0:
             raise MissingParameter(u'Name parameter is missing')
+        elif self._search_device(u'name', name) is not None:
+            raise InvalidParameter(u'Name "%s" is already used' % name)
         elif not gpio:
             raise MissingParameter(u'Gpio parameter is missing')
         elif inverted is None:
@@ -714,8 +736,13 @@ class Sensors(RaspIotModule):
         elif self._search_device(u'name', name) is not None:
             raise InvalidParameter(u'Name "%s" is already used' % name)
         elif gpio not in self.raspi_gpios:
-            raise InvalidParameter(u'Gpio does not exist for this raspberry pi')
-        else:
+            raise InvalidParameter(u'Gpio "%s" does not exist for this raspberry pi' % gpio)
+        elif self._search_device(u'name', name) is not None:
+            raise InvalidParameter(u'Name "%s" is already used' % name)
+
+        gpio_device = None
+        sensor_device = None
+        try:
             #configure gpio
             params = {
                 u'name': name + u'_motion',
@@ -727,12 +754,12 @@ class Sensors(RaspIotModule):
             resp_gpio = self.send_command(u'add_gpio', u'gpios', params)
             if resp_gpio[u'error']:
                 raise CommandError(resp_gpio[u'message'])
-            resp_gpio = resp_gpio[u'data']
+            gpio_device = resp_gpio[u'data']
                 
             #gpio was added and sensor is valid, add new sensor
             data = {
                 u'name': name,
-                u'gpios': [{u'gpio':gpio, u'gpio_uuid':resp_gpio[u'uuid'], u'pin':gpio_device[u'pin']}],
+                u'gpios': [{u'gpio':gpio, u'gpio_uuid':gpio_device[u'uuid'], u'pin':gpio_device[u'pin']}],
                 u'type': self.TYPE_MOTION,
                 u'subtype': u'generic',
                 u'on': False,
@@ -740,8 +767,18 @@ class Sensors(RaspIotModule):
                 u'lastupdate': 0,
                 u'lastduration': 0,
             }
-            if self._add_device(data) is None:
+            sensor_device = self._add_device(data)
+            if sensor_device is None:
                 raise CommandError(u'Unable to add sensor')
+
+        except Exception as e:
+            if gpio_device:
+                self.send_command(u'delete_gpio', u'gpios', {u'uuid': gpio_device[u'uuid']})
+            if sensor_device:
+               self._delete_device(sensor_device[u'uuid']) 
+
+            self.logger.exception(u'Error while adding motion sensor:')
+            raise CommandError(unicode(e))
 
         return True
 
@@ -757,25 +794,42 @@ class Sensors(RaspIotModule):
         Returns:
             bool: True if device update is successful
         """
-        device = self._get_device(uuid)
+        sensor = self._get_device(uuid)
         if not uuid:
             raise MissingParameter(u'Uuid parameter is missing')
-        elif device is None:
+        elif sensor is None:
             raise InvalidParameter(u'Sensor "%s" doesn\'t exist' % name)
-        elif name!=device[u'name'] and self._search_device(u'name', name) is not None:
+        elif name is None or len(name)==0:
+            raise MissingParameter(u'Name parameter is missing')
+        elif name!=sensor[u'name'] and self._search_device(u'name', name) is not None:
             raise InvalidParameter(u'Name "%s" is already used' % name)
         elif not name:
             raise MissingParameter(u'Name parameter is missing')
         elif inverted is None:
             raise MissingParameter(u'Inverted parameter is missing')
-        elif self._search_device(u'name', name) is not None:
-            raise InvalidParameter(u'Name is already used')
-        else:
+           
+        try:
+            #update gpio
+            params = {
+                u'uuid': sensor[u'gpios'][0][u'gpio_uuid'],
+                u'name': name + u'_motion',
+                u'keep': False,
+                u'inverted':inverted
+            }
+            resp_gpio = self.send_command(u'update_gpio', u'gpios', params)
+            if resp_gpio[u'error']:
+                raise CommandError(resp_gpio[u'message'])
+            gpio_device = resp_gpio[u'data']
+
             #update sensor
-            device[u'name'] = name
-            device[u'inverted'] = inverted
-            if not self._update_device(uuid, device):
+            sensor[u'name'] = name
+            sensor[u'inverted'] = inverted
+            if not self._update_device(uuid, sensor):
                 raise CommandError(u'Unable to update sensor')
+
+        except Exception as e:
+            self.logger.exception(u'Error while updating motion sensor:')
+            raise CommandError(unicode(e))
 
         return True
 
@@ -858,74 +912,163 @@ class Sensors(RaspIotModule):
             raise InvalidParameter(u'Offset_unit must be equal to "celsius" or "fahrenheit"')
         elif gpio is None or len(gpio)==0:
             raise MissingParameter(u'Gpio parameter is missing')
-        else:
-            gpio_device = None
-            temperature_device = None
-            humidity_device = None
-            try:
-                #configure gpio
-                params = {
-                    u'name': name + '_dht22',
-                    u'gpio': gpio,
-                    u'mode': u'input',
-                    u'keep': False,
-                    u'inverted': False
-                }
-                resp_gpio = self.send_command(u'add_gpio', u'gpios', params)
-                if resp_gpio[u'error']:
-                    raise CommandError(resp_gpio[u'message'])
-                gpio_device = resp_gpio[u'data']
+        
+        gpio_device = None
+        temperature_device = None
+        humidity_device = None
+        try:
+            #configure gpio
+            params = {
+                u'name': name + '_dht22',
+                u'gpio': gpio,
+                u'mode': u'input',
+                u'keep': False,
+                u'inverted': False
+            }
+            resp_gpio = self.send_command(u'add_gpio', u'gpios', params)
+            if resp_gpio[u'error']:
+                raise CommandError(resp_gpio[u'message'])
+            gpio_device = resp_gpio[u'data']
 
-                #compute offsets
-                (offsetC, offsetF) = self.__compute_temperature_offset(offset, offset_unit)
+            #compute offsets
+            (offsetC, offsetF) = self.__compute_temperature_offset(offset, offset_unit)
                 
-                #add new temperature sensor
-                data = {
-                    u'name': name,
-                    u'gpios': [{u'gpio':gpio, u'gpio_uuid':gpio_device[u'uuid'], u'pin':gpio_device[u'pin']}],
-                    u'type': self.TYPE_TEMPERATURE,
-                    u'subtype': self.SUBTYPE_DHT22,
-                    u'interval': interval,
-                    u'offsetcelsius': offsetC,
-                    u'offsetfahrenheit': offsetF,
-                    u'offset': offset,
-                    u'offsetunit': offset_unit,
-                    u'lastupdate': int(time.time()),
-                    u'celsius': None,
-                    u'fahrenheit': None
-                }
-                temperature_device = self._add_device(data)
-                if temperature_device is None:
-                    raise CommandError(u'Unable to add temperature sensor')
+            #add new temperature sensor
+            data = {
+                u'name': name,
+                u'gpios': [{u'gpio':gpio, u'gpio_uuid':gpio_device[u'uuid'], u'pin':gpio_device[u'pin']}],
+                u'type': self.TYPE_TEMPERATURE,
+                u'subtype': self.SUBTYPE_DHT22,
+                u'interval': interval,
+                u'offsetcelsius': offsetC,
+                u'offsetfahrenheit': offsetF,
+                u'offset': offset,
+                u'offsetunit': offset_unit,
+                u'lastupdate': int(time.time()),
+                u'celsius': None,
+                u'fahrenheit': None
+            }
+            temperature_device = self._add_device(data)
+            if temperature_device is None:
+                raise CommandError(u'Unable to add DHT22 temperature sensor')
 
-                #add new humidity sensor
-                data = {
-                    u'name': name,
-                    u'gpios': [{u'gpio':gpio, u'gpio_uuid':gpio_device[u'uuid'], u'pin':gpio_device[u'pin']}],
-                    u'type': self.TYPE_HUMIDITY,
-                    u'subtype': self.SUBTYPE_DHT22,
-                    u'interval': interval,
-                    u'lastupdate': int(time.time()),
-                    u'humidity': None
-                }
-                humidity_device = self._add_device(data)
-                if humidity_device is None:
-                    raise CommandError(u'Unable to add humidity sensor')
+            #add new humidity sensor
+            data = {
+                u'name': name,
+                u'gpios': [{u'gpio':gpio, u'gpio_uuid':gpio_device[u'uuid'], u'pin':gpio_device[u'pin']}],
+                u'type': self.TYPE_HUMIDITY,
+                u'subtype': self.SUBTYPE_DHT22,
+                u'interval': interval,
+                u'lastupdate': int(time.time()),
+                u'humidity': None
+            }
+            humidity_device = self._add_device(data)
+            if humidity_device is None:
+                raise CommandError(u'Unable to add DHT22 humidity sensor')
     
-                #launch DHT monitoring task (doesn't matter using one or the other device)
-                self.__start_sensor_task(temperature_device)
+            #launch DHT monitoring task (doesn't matter using one or the other device)
+            self.__start_sensor_task(temperature_device)
 
-            except Exception as e:
-                #remove devices if necessary
-                if gpio_device:
-                    self.send_command(u'delete_gpio', u'gpios', {u'uuid': gpio_device[u'uuid']})
-                if temperature_device:
-                    self._delete_device(temperature_device[u'uuid'])
-                if humidity_device:
-                    self._delete_device(humidity_device[u'uuid'])
+        except Exception as e:
+            #remove devices if necessary
+            if gpio_device:
+                self.send_command(u'delete_gpio', u'gpios', {u'uuid': gpio_device[u'uuid']})
+            if temperature_device:
+                self._delete_device(temperature_device[u'uuid'])
+            if humidity_device:
+                self._delete_device(humidity_device[u'uuid'])
 
-                self.logger.exception(u'Error while adding DHT22 sensor:')
-                raise CommandError(unicode(e))
+            self.logger.exception(u'Error while adding DHT22 sensor:')
+            raise CommandError(unicode(e))
+
+        return True
+
+    def update_dht22(self, name, interval, offset, offset_unit):
+        """
+        Add new DHT22 sensor
+
+        Params:
+            name (string): sensor name
+            interval (int): interval between sensor reading (seconds)
+            offset (int): temperature offset
+            offset_unit (string): temperature offset unit (string 'celsius' or 'fahrenheit')
+
+        Returns:
+            bool: True if sensor added successfully
+        """
+        #get assigned gpios
+        assigned_gpios = self.get_assigned_gpios()
+
+        #check values
+        sensor = self._get_device(uuid)
+        if name is None or len(name)==0:
+            raise MissingParameter(u'Name parameter is missing')
+        elif name!=sensor[u'name'] and self._search_device(u'name', name) is not None:
+            raise InvalidParameter(u'Name "%s" is already used' % name)
+        elif interval is None:
+            raise MissingParameter(u'Interval parameter is missing')
+        elif interval<=0:
+            raise InvalidParameter(u'Interval must be greater than 60')
+        elif offset is None:
+            raise MissingParameter(u'Offset parameter is missing')
+        elif offset<0:
+            raise InvalidParameter(u'Offset must be positive')
+        elif offset_unit is None or len(offset_unit)==0:
+            raise MissingParameter(u'Offset_unit paramter is missing')
+        elif offset_unit not in (u'celsius', u'fahrenheit'):
+            raise InvalidParameter(u'Offset_unit must be equal to "celsius" or "fahrenheit"')
+        
+        try:
+            #configure gpio
+            params = {
+                u'uuid': sensor[u'gpios'][0][u'gpio_uuid'],
+                u'name': name + '_dht22',
+                u'mode': u'input',
+                u'keep': False,
+                u'inverted': False
+            }
+            resp_gpio = self.send_command(u'update_gpio', u'gpios', params)
+            if resp_gpio[u'error']:
+                raise CommandError(resp_gpio[u'message'])
+            gpio_device = resp_gpio[u'data']
+
+            #compute offsets
+            (offsetC, offsetF) = self.__compute_temperature_offset(offset, offset_unit)
+                
+            #update new temperature sensor
+            data = {
+                u'name': name,
+                u'interval': interval,
+                u'offsetcelsius': offsetC,
+                u'offsetfahrenheit': offsetF,
+                u'offset': offset,
+                u'offsetunit': offset_unit,
+                u'lastupdate': int(time.time()),
+                u'celsius': None,
+                u'fahrenheit': None
+            }
+            temperature_device = self._update_device(data)
+            if temperature_device is None:
+                raise CommandError(u'Unable to update DHT22 temperature sensor')
+
+            #update new humidity sensor
+            data = {
+                u'name': name,
+                u'interval': interval,
+                u'lastupdate': int(time.time()),
+                u'humidity': None
+            }
+            humidity_device = self._update_device(data)
+            if humidity_device is None:
+                raise CommandError(u'Unable to update DHT22 humidity sensor')
+    
+            #relaunch DHT monitoring task
+            self.__stop_sensor_task(temperature_device)
+            self.__start_sensor_task(temperature_device)
+
+        except Exception as e:
+            self.logger.exception(u'Error while updating DHT22 sensor:')
+            raise CommandError(unicode(e))
 
         return True
     

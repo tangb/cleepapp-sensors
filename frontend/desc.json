@@ -6,7 +6,7 @@
     },
     "config": {
         "js": ["sensors.config.js"],
-        "html": ["sensors.config.html", "addSensor.dialog.html"]
+        "html": ["sensors.config.html", "addSensor.dialog.html", "updateSensor.dialog.html"]
     }
 }
 
