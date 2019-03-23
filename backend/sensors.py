@@ -62,15 +62,15 @@ class Sensors(RaspIotModule):
         RaspIotModule.__init__(self, bootstrap, debug_enabled)
 
         #members
-        self.__tasks = {}
+        self._tasks = {}
         self.raspi_gpios = {}
-        self.driver_onewire = False
+        self.__onewire_driver_installed = False
 
         #events
-        self.sensorsMotionOn = self._get_event(u'sensors.motion.on')
-        self.sensorsMotionOff = self._get_event(u'sensors.motion.off')
-        self.sensorsTemperatureUpdate = self._get_event(u'sensors.temperature.update')
-        self.sensorsHumidityUpdate = self._get_event(u'sensors.humidity.update')
+        self.sensors_motion_on = self._get_event(u'sensors.motion.on')
+        self.sensors_motion_off = self._get_event(u'sensors.motion.off')
+        self.sensors_temperature_update = self._get_event(u'sensors.temperature.update')
+        self.sensors_humidity_update = self._get_event(u'sensors.humidity.update')
 
     def _configure(self):
         """
@@ -78,9 +78,10 @@ class Sensors(RaspIotModule):
         """
         #raspi gpios
         self.raspi_gpios = self.get_raspi_gpios()
+        self.__onewire_driver_installed = self.is_onewire_driver_installed()
         
         #onewire driver
-        self.logger.debug('Onewire driver installed? %s' % self.is_onewire_installed())
+        self.logger.debug('Onewire driver installed? %s' % self.__onewire_driver_installed)
 
         #launch sensors monitoring tasks
         devices = self.get_module_devices()
@@ -92,8 +93,8 @@ class Sensors(RaspIotModule):
         Stop module
         """
         #stop tasks
-        for t in self.__tasks:
-            self.__tasks[t].stop()
+        for t in self._tasks:
+            self._tasks[t].stop()
 
     def event_received(self, event):
         """
@@ -157,8 +158,10 @@ class Sensors(RaspIotModule):
         config = {}
         config[u'raspi_gpios'] = self.get_raspi_gpios()
         config[u'drivers'] = {
-            u'onewire': self.driver_onewire
+            u'onewire': self.is_onewire_driver_installed()
         }
+
+        self.sensors_motion_on.send()
 
         return config
 
@@ -273,7 +276,7 @@ class Sensors(RaspIotModule):
         """
         Start sensor task if necessary according to its type/subtype
         """
-        if sensor[u'name'] in self.__tasks:
+        if sensor[u'name'] in self._tasks:
             #sensor has already task running
             self.logger.warning(u'Sensor "%s" has already task running' % sensor[u'name'])
             return
@@ -287,7 +290,7 @@ class Sensors(RaspIotModule):
             if sensor[u'subtype']==self.SUBTYPE_DHT22:
                 self.__prepare_dht_task(sensor)
             else:
-                self.__tasks[sensor[u'name']] = Task(float(sensor[u'interval']), self.__read_temperature, self.logger, [sensor])
+                self._tasks[sensor[u'name']] = Task(float(sensor[u'interval']), self.__read_temperature, self.logger, [sensor])
 
         elif sensor[u'type']==self.TYPE_HUMIDITY:
             if sensor[u'subtype']==self.SUBTYPE_DHT22:
@@ -295,7 +298,7 @@ class Sensors(RaspIotModule):
 
         #start task
         self.logger.debug(u'Start task (refresh every %s seconds) for sensor %s ' % (unicode(sensor[u'interval']), sensor[u'name']))
-        self.__tasks[sensor[u'name']].start()
+        self._tasks[sensor[u'name']].start()
 
     def __prepare_dht_task(self, sensor):
         """
@@ -309,16 +312,16 @@ class Sensors(RaspIotModule):
         if len(devices)==2:
             #the 2 devices exist
             if devices[0][u'type']==self.TYPE_TEMPERATURE:
-                self.__tasks[sensor[u'name']] = Task(float(sensor[u'interval']), self.__read_dht, self.logger, [devices[0], devices[1]])
+                self._tasks[sensor[u'name']] = Task(float(sensor[u'interval']), self._read_dht, self.logger, [devices[0], devices[1]])
             else:
-                self.__tasks[sensor[u'name']] = Task(float(sensor[u'interval']), self.__read_dht, self.logger, [devices[1], devices[0]])
+                self._tasks[sensor[u'name']] = Task(float(sensor[u'interval']), self._read_dht, self.logger, [devices[1], devices[0]])
 
         elif len(devices)==1:
             #only 1 sensor exists
             if sensor[u'type']==self.TYPE_TEMPERATURE:
-                self.__tasks[sensor[u'name']] = Task(float(sensor[u'interval']), self.__read_dht, self.logger, [sensor, None])
+                self._tasks[sensor[u'name']] = Task(float(sensor[u'interval']), self._read_dht, self.logger, [sensor, None])
             else:
-                self.__tasks[sensor[u'name']] = Task(float(sensor[u'interval']), self.__read_dht, self.logger, [None, sensor])
+                self._tasks[sensor[u'name']] = Task(float(sensor[u'interval']), self._read_dht, self.logger, [None, sensor])
 
     def __stop_sensor_task(self, sensor):
         """
@@ -328,7 +331,7 @@ class Sensors(RaspIotModule):
             sensor (dict): sensor data
         """
         #check if task is running
-        if sensor[u'name'] not in  self.__tasks:
+        if sensor[u'name'] not in  self._tasks:
             self.logger.warning(u'Sensor "%s" has no task running' % sensor[u'name'])
             return
 
@@ -353,14 +356,14 @@ class Sensors(RaspIotModule):
         #stop task
         if stop_task:
             self.logger.debug(u'Stop task for sensor %s' % sensor[u'name'])
-            self.__tasks[sensor[u'name']].stop()
-            del self.__tasks[sensor[u'name']]
+            self._tasks[sensor[u'name']].stop()
+            del self._tasks[sensor[u'name']]
 
     """
     ONEWIRE DRIVER
     """
 
-    def is_onewire_installed(self):
+    def is_onewire_driver_installed(self):
         """
         Return True if onewire drivers are installed
 
@@ -375,45 +378,53 @@ class Sensors(RaspIotModule):
         installed_etcmodules = etcmodules.is_onewire_enabled()
         loaded_module = lsmod.is_module_loaded(etcmodules.MODULE_ONEWIREGPIO)
 
-        self.driver_onewire = installed_configtxt and installed_etcmodules and loaded_module
+        self.__onewire_driver_installed = installed_configtxt and installed_etcmodules and loaded_module
 
-        return self.driver_onewire
+        return self.__onewire_driver_installed
 
-    def install_onewire(self):
+    def install_onewire_driver(self):
         """
         Install onewire drivers
 
         Returns:
             bool: True if onewire drivers installed successfully
+
+        Raises:
+            CommandError if error occured
         """
         configtxt = ConfigTxt(self.cleep_filesystem)
         etcmodules = EtcModules(self.cleep_filesystem)
-        result = etcmodules.enable_onewire() and configtxt.enable_onewire()
-        self.driver_onewire = result
+        if not etcmodules.enable_onewire() or not configtxt.enable_onewire():
+            self.logger.error(u'Unable to install onewire driver')
+            raise CommandError(u'Unable to install onewire driver')
+        self.__onewire_driver_installed = True
 
         #reboot right now
-        if result:
-            self.send_command(u'reboot_system', to=u'system', params={'delay':1.0})
+        self.send_command(u'reboot_system', to=u'system', params={'delay':1.0})
 
-        return result
+        return True
 
-    def uninstall_onewire(self):
+    def uninstall_onewire_driver(self):
         """
         Uninstall onewire drivers
 
         Returns:
             bool: True if onewire drivers uninstalled successfully
+
+        Raises:
+            CommandError if error occured
         """
         configtxt = ConfigTxt(self.cleep_filesystem)
         etcmodules = EtcModules(self.cleep_filesystem)
-        result = etcmodules.disable_onewire() and configtxt.disable_onewire()
-        self.driver_onewire = result
+        if not etcmodules.disable_onewire() or not configtxt.disable_onewire():
+            self.logger.error(u'Unable to uninstall onewire driver')
+            raise CommandError(u'Unable to uninstall onewire driver')
+        self.__onewire_driver_installed = False
 
         #reboot right now
-        if result:
-            self.send_command(u'reboot_system', to=u'system', params={'delay':1.0})
+        self.send_command(u'reboot_system', to=u'system', params={'delay':1.0})
 
-        return result
+        return True
 
     def get_onewire_devices(self):
         """
@@ -428,12 +439,11 @@ class Sensors(RaspIotModule):
         """
         onewires = []
 
-        devices = glob.glob(os.path.join(Sensors.ONEWIRE_PATH, u'28*'))
-        for device in devices:
+        devices = glob.glob(os.path.join(self.ONEWIRE_PATH, u'28*'))
             try:
                 onewires.append({
                     u'device': os.path.basename(device),
-                    u'path': os.path.join(device, Sensors.ONEWIRE_SLAVE)
+                    u'path': os.path.join(device, self.ONEWIRE_SLAVE)
                 })
             except:
                 self.logger.exception(u'Error during 1wire bus scan:')
@@ -515,7 +525,7 @@ class Sensors(RaspIotModule):
 
                 #and send event
                 now = int(time.time())
-                self.sensorsTemperatureUpdate.send(params={u'sensor':sensor[u'name'], u'celsius':tempC, u'fahrenheit':tempF, u'lastupdate':now}, device_id=sensor[u'uuid'])
+                self.sensors_temperature_update.send(params={u'sensor':sensor[u'name'], u'celsius':tempC, u'fahrenheit':tempF, u'lastupdate':now}, device_id=sensor[u'uuid'])
 
         else:
             self.logger.warning(u'Unknown temperature subtype "%s"' % sensor[u'subtype'])
@@ -717,7 +727,7 @@ class Sensors(RaspIotModule):
             inverted (bool): set if gpio is inverted or not (bool)
 
         Returns:
-            bool: True if sensor added successfully
+            dict: created sensor data
         """
         #get assigned gpios
         assigned_gpios = self.get_assigned_gpios()
@@ -780,7 +790,7 @@ class Sensors(RaspIotModule):
             self.logger.exception(u'Error while adding motion sensor:')
             raise CommandError(unicode(e))
 
-        return True
+        return sensor_device
 
     def update_motion_generic(self, uuid, name, inverted):
         """
@@ -792,7 +802,7 @@ class Sensors(RaspIotModule):
             inverted (bool): set if gpio is inverted or not
 
         Returns:
-            bool: True if device update is successful
+            dict: created sensor data
         """
         sensor = self._get_device(uuid)
         if not uuid:
@@ -831,7 +841,7 @@ class Sensors(RaspIotModule):
             self.logger.exception(u'Error while updating motion sensor:')
             raise CommandError(unicode(e))
 
-        return True
+        return sensor
 
     def __process_motion_sensor(self, event, sensor):
         """
@@ -856,7 +866,7 @@ class Sensors(RaspIotModule):
                 self._update_device(sensor[u'uuid'], sensor)
 
                 #new motion event
-                self.sensorsMotionOn.send(params={u'sensor':sensor[u'name'], u'lastupdate':now}, device_id=sensor[u'uuid'])
+                self.sensors_motion_on.send(params={u'sensor':sensor[u'name'], u'lastupdate':now}, device_id=sensor[u'uuid'])
 
         elif event[u'event']==u'gpios.gpio.off':
             if sensor[u'on']:
@@ -870,7 +880,7 @@ class Sensors(RaspIotModule):
                 self._update_device(sensor[u'uuid'], sensor)
 
                 #new motion event
-                self.sensorsMotionOff.send(params={u'sensor': sensor[u'name'], u'duration':sensor[u'lastduration'], u'lastupdate':now}, device_id=sensor[u'uuid'])
+                self.sensors_motion_off.send(params={u'sensor': sensor[u'name'], u'duration':sensor[u'lastduration'], u'lastupdate':now}, device_id=sensor[u'uuid'])
 
     """
     DHT SENSOR
@@ -888,7 +898,7 @@ class Sensors(RaspIotModule):
             offset_unit (string): temperature offset unit (string 'celsius' or 'fahrenheit')
 
         Returns:
-            bool: True if sensor added successfully
+            tuple: created temperature and humidity sensors
         """
         #get assigned gpios
         assigned_gpios = self.get_assigned_gpios()
@@ -981,7 +991,7 @@ class Sensors(RaspIotModule):
             self.logger.exception(u'Error while adding DHT22 sensor:')
             raise CommandError(unicode(e))
 
-        return True
+        return temperature_device, humidity_device
 
     def update_dht22(self, name, interval, offset, offset_unit):
         """
@@ -1072,7 +1082,7 @@ class Sensors(RaspIotModule):
 
         return True
     
-    def __read_dht(self, temperature, humidity):
+    def _read_dht(self, temperature, humidity):
         """
         Read temperature and humidity from dht sensor
 
@@ -1082,7 +1092,7 @@ class Sensors(RaspIotModule):
         """
         if (temperature and temperature[u'subtype']==self.SUBTYPE_DHT22) or (humidity and humidity[u'subtype']==self.SUBTYPE_DHT22):
             #send only one of sensor because both of them contains same gpio id
-            (tempC, tempF, humP) = self.__read_dht22(temperature or humidity)
+            (tempC, tempF, humP) = self._read_dht22(temperature or humidity)
             self.logger.info(u'Read values from DHT22: %s°C, %s°F, %s%%' % (tempC, tempF, humP))
             now = int(time.time())
             if temperature and tempC is not None and tempF is not None:
@@ -1093,7 +1103,7 @@ class Sensors(RaspIotModule):
 
                 #and send event if update succeed (if not device may has been removed)
                 if self._update_device(temperature[u'uuid'], temperature):
-                    self.sensorsTemperatureUpdate.send(params={u'sensor':temperature[u'name'], u'celsius':tempC, u'fahrenheit':tempF, u'lastupdate':now}, device_id=temperature[u'uuid'])
+                    self.sensors_temperature_update.send(params={u'sensor':temperature[u'name'], u'celsius':tempC, u'fahrenheit':tempF, u'lastupdate':now}, device_id=temperature[u'uuid'])
 
             if humidity and humP is not None:
                 #humidity value is valid, update sensor value
@@ -1102,7 +1112,7 @@ class Sensors(RaspIotModule):
 
                 #and send event if update succeed (if not device may has been removed)
                 if self._update_device(humidity[u'uuid'], humidity):
-                    self.sensorsHumidityUpdate.send(params={u'sensor':humidity[u'name'], u'humidity':humP, u'lastupdate':now}, device_id=humidity[u'uuid'])
+                    self.sensors_humidity_update.send(params={u'sensor':humidity[u'name'], u'humidity':humP, u'lastupdate':now}, device_id=humidity[u'uuid'])
 
             if tempC is None and tempF is None and humP is None:
                 self.logger.warning(u'No value returned by DHT sensor!')
@@ -1110,7 +1120,7 @@ class Sensors(RaspIotModule):
         else:
             self.logger.warning(u'Unknown temperature subtype "%s"' % sensor[u'subtype'])
 
-    def __read_dht22(self, sensor):
+    def _read_dht22(self, sensor):
         """
         Read temperature from dht22 sensor
         
