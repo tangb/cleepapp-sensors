@@ -54,6 +54,7 @@ class Sensors(RaspIotModule):
     TEMP_FAHRENHEIT = 'fahrenheit'
 
     USAGE_ONEWIRE = u'onewire'
+    ONEWIRE_RESERVED_GPIO = u'GPIO4'
 
     def __init__(self, bootstrap, debug_enabled):
         """
@@ -165,8 +166,6 @@ class Sensors(RaspIotModule):
         config[u'drivers'] = {
             u'onewire': self.is_onewire_driver_installed()
         }
-
-        self.sensors_motion_on.send()
 
         return config
 
@@ -402,7 +401,7 @@ class Sensors(RaspIotModule):
         #reserve gpio dedicated to onewire
         params = {
             u'name': u'reserved_onewire',
-            u'gpio': u'GPIO04',
+            u'gpio': self.ONEWIRE_RESERVED_GPIO,
             u'usage': self.USAGE_ONEWIRE
         }
         resp_gpio = self.send_command(u'reserve_gpio', u'gpios', params)
