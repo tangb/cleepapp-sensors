@@ -60,13 +60,6 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
     };
 
     /**
-     * Reserve onewire bus gpio
-     */
-    self.reserveOnewireGpio = function(gpio) {
-        return rpcService.sendCommand('reserve_onewire_gpio', 'sensors', {'gpio':gpio});
-    };
-
-    /**
      * Add DHT22 sensor
      */
     self.addDht22Sensor = function(name, gpio, interval, offset, offsetUnit) {
@@ -76,8 +69,8 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
     /**
      * Update DHT22 sensor
      */
-    self.updateDht22Sensor = function(uuid, name, interval, offset, offsetUnit) {
-        return rpcService.sendCommand('update_dht22', 'sensors', {'uuid':uuid, 'name':name, 'interval':interval, 'offset':offset, 'offset_unit':offsetUnit});
+    self.updateDht22Sensor = function(oldName, newName, interval, offset, offsetUnit) {
+        return rpcService.sendCommand('update_dht22', 'sensors', {'old_name':oldName, 'new_name':newName, 'interval':interval, 'offset':offset, 'offset_unit':offsetUnit});
     }
 
     /**
@@ -98,14 +91,14 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
      * Install onewire driver
      */
     self.installOnewire = function() {
-        return rpcService.sendCommand('install_onewire', 'sensors');
+        return rpcService.sendCommand('install_onewire_driver', 'sensors');
     };
 
     /**
      * Uninstall onewire driver
      */
     self.uninstallOnewire = function() {
-        return rpcService.sendCommand('uninstall_onewire', 'sensors');
+        return rpcService.sendCommand('uninstall_onewire_driver', 'sensors');
     };
 
     /**

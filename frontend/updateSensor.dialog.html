@@ -39,7 +39,7 @@
                 </md-input-container>
             </div>
 
-            <!-- temperature -->
+            <!-- temperature onewire -->
             <div ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_TEMPERATURE && sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_ONEWIRE">
 
                 <!-- driver not installed -->
@@ -72,7 +72,7 @@
             </div>
 
             <!-- temperature parameters -->
-            <div ng-if="sensorsCtl.type.type.type===sensorsCtl.TYPE_TEMPERATURE">
+            <div ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_TEMPERATURE">
 
                 <div layout-gt-sm="row">
                     <md-input-container class="md-block" flex-gt-sm>
@@ -94,6 +94,32 @@
                 </div>
 
             </div>
+
+            <!-- dht22 parameters -->
+            <div ng-if="sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_DHT22">
+
+                <div gpios-pins-config readonly="true" selected-gpios="sensorsCtl.selectedGpios"></div>
+                <div layout-gt-sm="row">
+                    <md-input-container class="md-block" flex-gt-sm>
+                        <label>Interval</label>
+                        <md-select ng-model="sensorsCtl.interval">
+                            <md-option ng-repeat="interval in sensorsCtl.intervals" ng-value="interval.value">{{interval.label}}</md-option>
+                        </md-select>
+                    </md-input-container>
+                    <md-input-container class="md-block" flex-gt-sm>
+                        <label>Temperature offset</label>
+                        <input type="number" min="0" ng-model="sensorsCtl.offset">
+                    </md-input-container>
+                    <md-input-container class="md-block" flex-gt-sm>
+                        <label>Temperature offset type</label>
+                        <md-select ng-model="sensorsCtl.offsetUnit">
+                            <md-option ng-repeat="offset in sensorsCtl.offsetUnits" ng-value="offset.value">{{offset.label}}</md-option>
+                        </md-select>
+                    </md-input-container>
+                </div>
+
+            </div>
+
 
         </div>
         </md-dialog-content>

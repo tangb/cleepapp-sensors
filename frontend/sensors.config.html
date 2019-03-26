@@ -54,8 +54,8 @@
 
             <!-- temperature sensor -->
             <div class="md-secondary md-secondary-rpadding" ng-if="device.type==='temperature'">
-                <p ng-if="device.offsetunit==='celsius'" class="margin-v-5px">Offset: {{device.offsetcelsius}}°C</p>
-                <p ng-if="device.offsetunit==='fahrenheit'" class="margin-v-5px">Offset: {{device.offsetfahrenheit}}°F</p>
+                <p ng-if="device.offsetunit==='celsius'" class="margin-v-5px">Offset: {{device.offset}}°C</p>
+                <p ng-if="device.offsetunit==='fahrenheit'" class="margin-v-5px">Offset: {{device.offset}}°F</p>
                 <p class="margin-v-5px">Interval: {{device.interval/60}} mins</p>
             </div>
             <div class="md-secondary md-secondary-rpadding" ng-if="device.type==='temperature'">
@@ -64,6 +64,9 @@
             </div>
 
             <!-- humidity sensor -->
+            <div class="md-secondary md-secondary-rpadding" ng-if="device.type==='humidity'">
+                <p class="margin-v-5px">Interval: {{device.interval/60}} mins</p>
+            </div>
             <div class="md-secondary md-secondary-rpadding" ng-if="device.type==='humidity'">
                 <span>{{device.humidity ? device.humidity : '?'}}%</span>
             </div>

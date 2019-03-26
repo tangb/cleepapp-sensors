@@ -43,13 +43,33 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         self.type = self.types[0].value;
 
         /**
+         * Search sensor by name
+         */
+        self._searchSensorsByName = function(name) {
+            founds = [];
+
+            for( var i=0; i<self.devices.length; i++ ) {
+                if( self.devices[i].module==='sensors' && self.devices[i].name==name )
+                {
+                    founds.push(self.devices[i]);
+                }
+            }
+
+            return founds;
+        };
+
+        /**
          * Return sensor type according to types member
          */
         self._getSensorType = function(sensor) {
-            console.log(sensor.type, sensor.subtype);
-            console.log(self.types);
             for( type of self.types ) {
-                if( type.type===sensor.type && type.subtype===sensor.subtype ) {
+                if( type.value.type===sensor.type && type.value.subtype===sensor.subtype ) {
+                    //strict type found
+                    return type.value;
+                }
+                else if( type.value.subtype===self.SUBTYPE_DHT22 )
+                {
+                    //multi sensor DHT22
                     return type.value;
                 }
             }
@@ -62,7 +82,7 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         /** 
          * Reset editor's values
          */
-        self._resetValues = function() {
+        self._resetEditorValues = function() {
             self.name = ''; 
             self.selectedGpios = [{'gpio':null, 'label':'wire'}];
             self.inverted = false;
@@ -114,18 +134,18 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
          * Add device
          */
         self.openAddDialog = function() {
-            self._resetValues();
+            self._resetEditorValues();
             self._openDialog(false)
                 .then(function() {
-                    if( self.type===self.TYPE_MOTION )
+                    if( self.type.type===self.TYPE_MOTION )
                     {
                         return sensorsService.addGenericMotionSensor(self.name, self.selectedGpios[0].gpio, self.inverted);
                     }
-                    else if( self.type===self.TYPE_TEMPERATURE && self.subtype===self.SUBTYPE_ONEWIRE )
+                    else if( self.type.type===self.TYPE_TEMPERATURE && self.type.subtype===self.SUBTYPE_ONEWIRE )
                     {
                         return sensorsService.addOnewireTemperatureSensor(self.name, self.onewire.device, self.onewire.path, self.interval, self.offset, self.offsetUnit, 'GPIO4');
                     }
-                    else if( self.type===self.TYPE_MULTI && self.subtype===self.SUBTYPE_DHT22 )
+                    else if( self.type.type===self.TYPE_MULTI && self.type.subtype===self.SUBTYPE_DHT22 )
                     {
                         return sensorsService.addDht22Sensor(self.name, self.selectedGpios[0].gpio, self.interval, self.offset, self.offsetUnit);
                     }
@@ -137,15 +157,15 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
                     toast.success('Sensor added');
                 })
                 .finally(function() {
-                    self._resetValues();
+                    self._resetEditorValues();
                 });
         };
 
-        /** 
-         * Update device
+        /**
+         * Fill editor values
          */
-        self.openUpdateDialog = function(device) {
-            //set editor's value
+        self._fillEditorValues = function(device) {
+            self.oldName = device.name;
             self.name = device.name;
             self.type = self._getSensorType(device);
             if( self.type.type===self.TYPE_MOTION )
@@ -165,6 +185,37 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
                 self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'data'}];
                 self.interval = device.interval;
             }
+            else if( self.type.subtype==self.SUBTYPE_DHT22 )
+            {
+                //need to know all dht22 sensors
+                founds = self._searchSensorsByName(device.name);
+                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'sensor wire'}];
+                self.interval = device.interval;
+                if( founds.length===2 )
+                {
+                    self.offset = founds[0].type===self.TYPE_TEMPERATURE ? founds[0].offset : founds[1].offset;
+                    self.offsetUnit = founds[0].type===self.TYPE_TEMPERATURE ? founds[0].offsetunit : founds[1].offsetunit;
+                }
+                else if( founds.length===1 && founds.type===self.TYPE_TEMPERATURE )
+                {
+                    self.offset = founds[0].offset;
+                    self.offsetUnit = founds[0].offsetunit;
+                }
+                else
+                {
+                    self.offset = 0;
+                    self.offsetUnit = 'celsius';
+                }
+            }
+
+        };
+
+        /** 
+         * Update device
+         */
+        self.openUpdateDialog = function(device) {
+
+            self._fillEditorValues(device);
 
             //open dialog
             self._openDialog(true)
@@ -179,7 +230,7 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
                     }
                     else if( self.type.subtype===self.SUBTYPE_DHT22)
                     {
-                        return sensorsService.updateDht22Sensor(device.uuid, self.name, self.interval, self.offset, self.offsetUnit);
+                        return sensorsService.updateDht22Sensor(self.oldName, self.name, self.interval, self.offset, self.offsetUnit);
                     }
                 })
                 .then(function() {
@@ -189,7 +240,7 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
                     toast.success('Sensor updated');
                 }) 
                 .finally(function() {
-                    self._resetValues();
+                    self._resetEditorValues();
                 }); 
         }; 
 
