@@ -3,7 +3,7 @@
 <md-card class="widget-bg-color" style="width: 250px;">
     <md-card-header>
         <md-card-avatar>
-            <md-icon md-svg-icon="access-point"></md-icon>
+            <md-icon md-svg-icon="motion-sensor"></md-icon>
         </md-card-avatar>
         <md-card-header-text>
             <span class="md-title">{{widgetCtl.device.name}}</span>
@@ -12,7 +12,7 @@
     </md-card-header>
     <md-card-content layout="row" layout-align="space-around center" md-colors="{{widgetCtl.device.__widget.mdcolors}}">
         <div>
-            <md-icon md-svg-icon="access-point" class="icon-md"></md-icon>
+            <span class="md-display-1">{{widgetCtl.device.on ? 'ON' : 'OFF'}}</span>
         </div>
     </md-card-content>
     <md-card-actions layout="column" layout-align="start" ng-if="widgetCtl.hasDatabase">
