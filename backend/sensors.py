@@ -275,7 +275,7 @@ class Sensors(RaspIotModule):
         """
         if sensor[u'name'] in self._tasks:
             #sensor has already task running
-            self.logger.warning(u'Sensor "%s" has already task running' % sensor[u'name'])
+            self.logger.info(u'Sensor "%s" has already task running (can occured for multisensor)' % sensor[u'name'])
             return
 
         #prepare task
