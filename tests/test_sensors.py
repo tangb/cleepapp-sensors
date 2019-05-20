@@ -8,18 +8,15 @@ from backend.sensors import Sensors
 from raspiot.utils import InvalidParameter, MissingParameter, CommandError
 from raspiot.libs.tests import session
 
-DEBUG = False
-logging.basicConfig(level=logging.DEBUG if DEBUG else logging.CRITICAL, format=u'%(name)-12s[%(filename)s:%(lineno)d] %(levelname)-5s : %(message)s')
-
 class SensorsTests(unittest.TestCase):
 
     ONEWIRE_PATH = '/tmp/onewire'
 
     def setUp(self):
-        self.session = session.Session(DEBUG)
+        self.session = session.Session(logging.ERROR)
         self.session.add_command_handler('get_raspi_gpios', self.__get_raspi_gpios)
         self.session.add_command_handler('get_assigned_gpios', self.__get_assigned_gpios)
-        self.module = self.session.setup(Sensors, DEBUG)
+        self.module = self.session.setup(Sensors, False)
 
         if os.path.exists(self.ONEWIRE_PATH):
             shutil.rmtree(self.ONEWIRE_PATH)
