@@ -7,9 +7,7 @@ from raspiot.utils import MissingParameter, InvalidParameter, CommandError
 from raspiot.raspiot import RaspIotModule
 from raspiot.libs.internals.task import Task
 from raspiot.libs.internals.console import Console
-from raspiot.libs.configs.configtxt import ConfigTxt
-from raspiot.libs.configs.etcmodules import EtcModules
-from raspiot.libs.commands.lsmod import Lsmod
+from .onewiredriver import OnewireDriver
 import time
 import glob
 import json
@@ -70,7 +68,6 @@ class Sensors(RaspIotModule):
         #members
         self._tasks = {}
         self.raspi_gpios = {}
-        self.__onewire_driver_installed = False
 
         #events
         self.sensors_motion_on = self._get_event(u'sensors.motion.on')
@@ -78,17 +75,17 @@ class Sensors(RaspIotModule):
         self.sensors_temperature_update = self._get_event(u'sensors.temperature.update')
         self.sensors_humidity_update = self._get_event(u'sensors.humidity.update')
 
+        #drivers
+        self.onewire_driver = OnewireDriver(self.cleep_filesystem)
+        self._register_driver(self.onewire_driver)
+
     def _configure(self):
         """
         Configure module
         """
         #raspi gpios
-        self.raspi_gpios = self.get_raspi_gpios()
-        self.__onewire_driver_installed = self.is_onewire_driver_installed()
+        self.raspi_gpios = self._get_raspi_gpios()
         
-        #onewire driver
-        self.logger.debug('Onewire driver installed? %s' % self.__onewire_driver_installed)
-
         #launch sensors monitoring tasks
         devices = self.get_module_devices()
         for uuid in devices:
@@ -109,11 +106,10 @@ class Sensors(RaspIotModule):
         Params:
             event (MessageRequest): event data
         """
-        #self.logger.debug('*** event received: %s' % unicode(event))
         #drop startup events
         if event[u'startup']:
             self.logger.debug(u'Drop startup event')
-            return 
+            return
 
         if event[u'event'] in (u'gpios.gpio.on', u'gpios.gpio.off'):
             #drop gpio init
@@ -133,6 +129,22 @@ class Sensors(RaspIotModule):
                 if sensor[u'type']==self.TYPE_MOTION:
                     #motion sensor
                     self.__process_motion_sensor(event, sensor)
+
+        if event[u'event']==u'system.driver.install' and event[u'params'][u'drivername']=='onewire':
+            #reserve onewire gpio
+            params = {
+                u'name': u'reserved_onewire',
+                u'gpio': self.ONEWIRE_RESERVED_GPIO,
+                u'usage': self.USAGE_ONEWIRE
+            }
+            resp = self.send_command(u'reserve_gpio', u'gpios', params)
+            self.logger.debug(u'Reserve gpio result: %s' % resp)
+        elif event[u'event']==u'system.driver.uninstall' and event[u'params'][u'drivername']=='onewire':
+            #free onewire gpio
+            sensor = self.__search_by_gpio(self.ONEWIRE_RESERVED_GPIO)
+            if sensor:
+                resp = self.send_command('delete_gpio', u'gpios', {u'uuid': sensor[u'gpios'][0][u'gpio_uuid']})
+                self.logger.debug(u'Delete gpio result: %s' % resp)
 
     def __search_by_gpio(self, gpio_uuid):
         """
@@ -162,9 +174,8 @@ class Sensors(RaspIotModule):
             dict: module configuration
         """
         config = {}
-        config[u'raspi_gpios'] = self.get_raspi_gpios()
         config[u'drivers'] = {
-            u'onewire': self.is_onewire_driver_installed()
+            u'onewire': self.onewire_driver.is_installed()
         }
 
         return config
@@ -187,7 +198,7 @@ class Sensors(RaspIotModule):
                     uses += 1
         return uses
 
-    def get_raspi_gpios(self):
+    def _get_raspi_gpios(self):
         """
         Get raspi gpios
 
@@ -201,7 +212,7 @@ class Sensors(RaspIotModule):
         else:
             return resp[u'data']
 
-    def get_assigned_gpios(self):
+    def _get_assigned_gpios(self):
         """
         Return assigned gpios
 
@@ -362,78 +373,78 @@ class Sensors(RaspIotModule):
     ONEWIRE DRIVER
     """
 
-    def is_onewire_driver_installed(self):
-        """
-        Return True if onewire drivers are installed
+    #def is_onewire_driver_installed(self):
+    #    """
+    #    Return True if onewire drivers are installed
+    #
+    #    Returns:
+    #        bool: True if onewire drivers installed
+    #    """
+    #    configtxt = ConfigTxt(self.cleep_filesystem)
+    #    etcmodules = EtcModules(self.cleep_filesystem)
+    #    lsmod = Lsmod()
+    #
+    #    installed_configtxt = configtxt.is_onewire_enabled()
+    #    installed_etcmodules = etcmodules.is_onewire_enabled()
+    #    loaded_module = lsmod.is_module_loaded(etcmodules.MODULE_ONEWIREGPIO)
+    #
+    #    self.__onewire_driver_installed = installed_configtxt and installed_etcmodules and loaded_module
+    #
+    #    return self.__onewire_driver_installed
 
-        Returns:
-            bool: True if onewire drivers installed
-        """
-        configtxt = ConfigTxt(self.cleep_filesystem)
-        etcmodules = EtcModules(self.cleep_filesystem)
-        lsmod = Lsmod()
+    #def install_onewire_driver(self):
+    #    """
+    #    Install onewire drivers
+    #
+    #    Returns:
+    #        bool: True if onewire drivers installed successfully
+    #
+    #    Raises:
+    #        CommandError if error occured
+    #    """
+    #    configtxt = ConfigTxt(self.cleep_filesystem)
+    #    etcmodules = EtcModules(self.cleep_filesystem)
+    #    if not etcmodules.enable_onewire() or not configtxt.enable_onewire():
+    #        self.logger.error(u'Unable to install onewire driver')
+    #        raise CommandError(u'Unable to install onewire driver')
+    #    self.__onewire_driver_installed = True
+    #
+    #    #reserve gpio dedicated to onewire
+    #    params = {
+    #        u'name': u'reserved_onewire',
+    #        u'gpio': self.ONEWIRE_RESERVED_GPIO,
+    #        u'usage': self.USAGE_ONEWIRE
+    #    }
+    #    resp_gpio = self.send_command(u'reserve_gpio', u'gpios', params)
+    #    if resp_gpio[u'error']:
+    #        raise CommandError(resp_gpio[u'message'])
+    #
+    #    #reboot right now
+    #    self.send_command(u'reboot_system', to=u'system', params={'delay':1.0})
+    #
+    #    return True
 
-        installed_configtxt = configtxt.is_onewire_enabled()
-        installed_etcmodules = etcmodules.is_onewire_enabled()
-        loaded_module = lsmod.is_module_loaded(etcmodules.MODULE_ONEWIREGPIO)
-
-        self.__onewire_driver_installed = installed_configtxt and installed_etcmodules and loaded_module
-
-        return self.__onewire_driver_installed
-
-    def install_onewire_driver(self):
-        """
-        Install onewire drivers
-
-        Returns:
-            bool: True if onewire drivers installed successfully
-
-        Raises:
-            CommandError if error occured
-        """
-        configtxt = ConfigTxt(self.cleep_filesystem)
-        etcmodules = EtcModules(self.cleep_filesystem)
-        if not etcmodules.enable_onewire() or not configtxt.enable_onewire():
-            self.logger.error(u'Unable to install onewire driver')
-            raise CommandError(u'Unable to install onewire driver')
-        self.__onewire_driver_installed = True
-
-        #reserve gpio dedicated to onewire
-        params = {
-            u'name': u'reserved_onewire',
-            u'gpio': self.ONEWIRE_RESERVED_GPIO,
-            u'usage': self.USAGE_ONEWIRE
-        }
-        resp_gpio = self.send_command(u'reserve_gpio', u'gpios', params)
-        if resp_gpio[u'error']:
-            raise CommandError(resp_gpio[u'message'])
-
-        #reboot right now
-        self.send_command(u'reboot_system', to=u'system', params={'delay':1.0})
-
-        return True
-
-    def uninstall_onewire_driver(self):
-        """
-        Uninstall onewire drivers
-
-        Returns:
-            bool: True if onewire drivers uninstalled successfully
-
-        Raises:
-            CommandError if error occured
-        """
-        configtxt = ConfigTxt(self.cleep_filesystem)
-        etcmodules = EtcModules(self.cleep_filesystem)
-        if not etcmodules.disable_onewire() or not configtxt.disable_onewire():
-            self.logger.error(u'Unable to uninstall onewire driver')
-            raise CommandError(u'Unable to uninstall onewire driver')
-        self.__onewire_driver_installed = False
-
-        #reboot right now
-        self.send_command(u'reboot_system', to=u'system', params={'delay':1.0})
-
-        return True
+    #def uninstall_onewire_driver(self):
+    #    """
+    #    Uninstall onewire drivers
+    #
+    #    Returns:
+    #        bool: True if onewire drivers uninstalled successfully
+    #
+    #    Raises:
+    #        CommandError if error occured
+    #    """
+    #    configtxt = ConfigTxt(self.cleep_filesystem)
+    #    etcmodules = EtcModules(self.cleep_filesystem)
+    #    if not etcmodules.disable_onewire() or not configtxt.disable_onewire():
+    #        self.logger.error(u'Unable to uninstall onewire driver')
+    #        raise CommandError(u'Unable to uninstall onewire driver')
+    #    self.__onewire_driver_installed = False
+    #
+    #    #reboot right now
+    #    self.send_command(u'reboot_system', to=u'system', params={'delay':1.0})
+    #
+    #    return True
 
     def get_onewire_devices(self):
         """
@@ -448,7 +459,7 @@ class Sensors(RaspIotModule):
         """
         onewires = []
 
-        if not self.is_onewire_driver_installed():
+        if not self.onewire_driver.is_installed():
             raise CommandError(u'Onewire driver is not installed')
 
         devices = glob.glob(os.path.join(self.ONEWIRE_PATH, u'28*'))
@@ -750,7 +761,7 @@ class Sensors(RaspIotModule):
             dict: created sensor data
         """
         #get assigned gpios
-        assigned_gpios = self.get_assigned_gpios()
+        assigned_gpios = self._get_assigned_gpios()
 
         #check values
         if name is None or len(name)==0:
@@ -913,7 +924,7 @@ class Sensors(RaspIotModule):
             tuple: created temperature and humidity sensors
         """
         #get assigned gpios
-        assigned_gpios = self.get_assigned_gpios()
+        assigned_gpios = self._get_assigned_gpios()
 
         #check values
         if name is None or len(name)==0:
@@ -1013,7 +1024,7 @@ class Sensors(RaspIotModule):
             dict: updated sensor data
         """
         #get assigned gpios
-        assigned_gpios = self.get_assigned_gpios()
+        assigned_gpios = self._get_assigned_gpios()
 
         #check values
         devices = self._search_devices('name', old_name)

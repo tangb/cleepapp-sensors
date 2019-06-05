@@ -25,13 +25,6 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
     };
 
     /**
-     * Return raspi gpios (according to board version)
-     */
-    self.getRaspiGpios = function() {
-        return rpcService.sendCommand('get_raspi_gpios', 'gpios');
-    };
-
-    /**
      * Add new motion sensor
      */
     self.addGenericMotionSensor = function(name, gpio, inverted) {

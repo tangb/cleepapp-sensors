@@ -6,7 +6,6 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
 
     var sensorsController = [function() {
         var self = this;
-        self.raspiGpios = [];
         self.driverOnewire = false;
         self.installingDriver = false;
         self.devices = raspiotService.devices;
@@ -325,7 +324,6 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         self.init = function() {
             raspiotService.getModuleConfig('sensors')
                 .then(function(config) {
-                    self.raspiGpios = config.raspi_gpios;
                     self.driverOnewire = config.drivers.onewire;
                 });
 
