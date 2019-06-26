@@ -68,10 +68,10 @@ class FakeDriver():
 class CoreSensorsTests(unittest.TestCase):
 
     def setUp(self):
-        self.session = session.Session(logging.ERROR)
+        self.session = session.Session(logging.CRITICAL)
         self.session.mock_command('get_raspi_gpios', self.__get_raspi_gpios)
         self.session.mock_command('get_assigned_gpios', self.__get_assigned_gpios_empty)
-        self.module = self.session.setup(Sensors, True)
+        self.module = self.session.setup(Sensors)
 
         #overwrite sensors by fake one
         self.module.addons_by_name = {}
@@ -918,12 +918,12 @@ class OnewireSensorTests(unittest.TestCase):
     ONEWIRE_PATH = '/tmp/onewire'
 
     def setUp(self):
-        self.session = session.Session(logging.ERROR)
+        self.session = session.Session(logging.CRITICAL)
         self.session.mock_command('get_raspi_gpios', lambda: {
             'error': False,
             'data': {'GPIO18': 56}
         })
-        self.module = self.session.setup(Sensors, True)
+        self.module = self.session.setup(Sensors)
 
         if not os.path.exists(self.ONEWIRE_PATH):
             os.makedirs(self.ONEWIRE_PATH)
@@ -1387,7 +1387,7 @@ class OnewireSensorTests(unittest.TestCase):
 class MotionGenericSensorTests(unittest.TestCase):
 
     def setUp(self):
-        self.session = session.Session(logging.ERROR)
+        self.session = session.Session(logging.CRITICAL)
         self.session.mock_command('get_raspi_gpios', lambda: {
             'error': False,
             'data': {'GPIO18': 56}
@@ -1400,7 +1400,7 @@ class MotionGenericSensorTests(unittest.TestCase):
             'error': False,
             'data': False
         })
-        self.module = self.session.setup(Sensors, True)
+        self.module = self.session.setup(Sensors)
 
     def tearDown(self):
         self.session.clean()
@@ -1704,7 +1704,7 @@ class MotionGenericSensorTests(unittest.TestCase):
 class Dht22SensorTests(unittest.TestCase):
 
     def setUp(self):
-        self.session = session.Session(logging.ERROR)
+        self.session = session.Session(logging.CRITICAL)
         self.session.mock_command('get_raspi_gpios', lambda: {
             'error': False,
             'data': {'GPIO18': 56}
@@ -1713,7 +1713,7 @@ class Dht22SensorTests(unittest.TestCase):
             'error': False,
             'data': []
         })
-        self.module = self.session.setup(Sensors, True)
+        self.module = self.session.setup(Sensors)
 
     def tearDown(self):
         self.session.clean()
@@ -1759,7 +1759,6 @@ class Dht22SensorTests(unittest.TestCase):
         ]
 
         (temp, hum) = addon._get_dht22_devices('name')
-        print temp, hum
         self.assertIsNotNone(temp, 'Temperature device should be found')
         self.assertIsNotNone(hum, 'Humidity device should be found')
         self.assertEqual(temp['name'], 'test', 'Temperature device should have searched name')
