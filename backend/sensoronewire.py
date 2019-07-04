@@ -276,7 +276,7 @@ class SensorOnewire(Sensor):
         }
         self.sensors_temperature_update.send(params=params, device_id=sensor[u'uuid'])
                 
-    def get_task(self, sensor):
+    def _get_task(self, sensor):
         """
         Return sensor task
         

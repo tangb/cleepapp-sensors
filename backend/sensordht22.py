@@ -97,15 +97,13 @@ class SensorDht22(Sensor):
         elif gpio not in self.raspi_gpios:
             raise InvalidParameter(u'Gpio "%s" does not exist for this raspberry pi' % gpio)
 
-        gpio_data = [
-            {
-                u'name': name + '_dht22',
-                u'gpio': gpio,
-                u'mode': u'input',
-                u'keep': False,
-                u'inverted': False
-            }
-        ]
+        gpio_data = {
+            u'name': name + '_dht22',
+            u'gpio': gpio,
+            u'mode': u'input',
+            u'keep': False,
+            u'inverted': False
+        }
         
         temperature_data = {
             u'name': name,
@@ -230,7 +228,7 @@ class SensorDht22(Sensor):
         (temperature_device, humidity_device) = self._get_dht22_devices(sensor[u'name'])
             
         #gpios
-        gpios = [(temperature_device or humidity_device)[u'gpios'][0][u'gpio'], ]
+        gpios = [(temperature_device or humidity_device)[u'gpios'][0], ]
         
         #sensors
         sensors = []
@@ -337,12 +335,12 @@ class SensorDht22(Sensor):
         if tempC is None and tempF is None and humP is None:
             self.logger.warning(u'No value returned by DHT22 sensor!')
         
-    def get_task(self, sensor):
+    def _get_task(self, sensor):
         """
         Prepare task for DHT sensor only. It should have 2 devices with the same name.
 
         Args:
-            sensor (dict): DHT sensor data
+            sensor (dict): one of DHT22 sensor (temperature or humidity)
 
         Returns:
             Task: sensor task
@@ -351,3 +349,4 @@ class SensorDht22(Sensor):
         (temperature_device, humidity_device) = self._get_dht22_devices(sensor[u'name'])
         
         return Task(float(sensor[u'interval']), self._task, self.logger, [temperature_device, humidity_device])
+

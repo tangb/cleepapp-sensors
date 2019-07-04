@@ -19,6 +19,7 @@ class Sensor():
         self.raspi_gpios = {}
         self.drivers = {}
         self.cleep_filesystem = sensors.cleep_filesystem
+        self._task = None
 
     def _register_driver(self, driver):
         """
@@ -162,6 +163,22 @@ class Sensor():
         }
                
     def get_task(self, sensors):
+        """
+        Prepare specific sensor task
+        
+        Args:
+            sensors (list): list of sensors data (dict)
+        
+        Returns:
+            Task: task instance that will be launched by sensors instance or None if no task needed
+        """
+        #instanciate singleton
+        if self._task is None:
+            self._task = self._get_task(sensors)
+
+        return self._task
+
+    def _get_task(self, sensors):
         """
         Prepare specific sensor task
         
