@@ -34,7 +34,7 @@ class OnewireDriver(Driver):
         Args:
             params (any): extra parameters (optionnal)
         """
-        if not self.etcmodules.enable_onewire() or not self.configtxt.enable_module(self.MODULE_ONEWIREGPIO):
+        if not self.etcmodules.enable_module(self.MODULE_ONEWIREGPIO) or not self.configtxt.enable_onewire():
             raise Exception(u'Unable to install onewire system module')
 
         return True
@@ -46,7 +46,7 @@ class OnewireDriver(Driver):
         Args:
             params (any): extra parameters (optionnal)
         """
-        if not self.etcmodules.disable_onewire() or not self.configtxt.disable_module(self.MODULE_ONEWIREGPIO):
+        if not self.etcmodules.disable_module(self.MODULE_ONEWIREGPIO) or not self.configtxt.disable_onewire():
             raise Exception(u'Unable to uninstall onewire system module')
 
         return True
@@ -58,4 +58,5 @@ class OnewireDriver(Driver):
         Returns:
             bool: True if driver installed
         """
-        return True if self.etcmodules.is_onewire_enabled() and self.configtxt.__is_module_enabled(self.MODULE_ONEWIREGPIO) else False
+        return True if self.etcmodules.is_module_enabled(self.MODULE_ONEWIREGPIO) and self.configtxt.is_onewire_enabled() else False
+
