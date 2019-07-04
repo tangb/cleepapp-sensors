@@ -25,73 +25,31 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
     };
 
     /**
-     * Add new motion sensor
+     * Add new sensor
      */
-    self.addGenericMotionSensor = function(name, gpio, inverted) {
-        return rpcService.sendCommand('add_motion_generic', 'sensors', {'name':name, 'gpio':gpio, 'inverted':inverted});
+    self.addSensor = function(type, subtype, data) {
+        return rpcService.sendCommand('add_sensor', 'sensors', {'type': type, 'subtype': subtype, 'data': data});
     };
-
-    /**
-     * Add new onewire temperature sensor
-     */
-    self.addOnewireTemperatureSensor = function(name, device, path, interval, offset, offsetUnit) {
-        return rpcService.sendCommand('add_temperature_onewire', 'sensors', {'name':name, 'device':device, 'path':path, 'interval':interval, 'offset':offset, 'offset_unit':offsetUnit});
-    };
-
-    /**
-     * Update motion sensor
-     */
-    self.updateGenericMotionSensor = function(uuid, name, inverted) {
-        return rpcService.sendCommand('update_motion_generic', 'sensors', {'uuid':uuid, 'name':name, 'inverted':inverted});
-    };
-
-    /**
-     * Update onewire temperature sensor
-     */
-    self.updateOnewireTemperatureSensor = function(uuid, name, interval, offset, offsetUnit) {
-        return rpcService.sendCommand('update_temperature_onewire', 'sensors', {'uuid':uuid, 'name':name, 'interval':interval, 'offset':offset, 'offset_unit':offsetUnit});
-    };
-
-    /**
-     * Add DHT22 sensor
-     */
-    self.addDht22Sensor = function(name, gpio, interval, offset, offsetUnit) {
-        return rpcService.sendCommand('add_dht22', 'sensors', {'name':name, 'gpio':gpio, 'interval':interval, 'offset':offset, 'offset_unit':offsetUnit});
-    };
-
-    /**
-     * Update DHT22 sensor
-     */
-    self.updateDht22Sensor = function(oldName, newName, interval, offset, offsetUnit) {
-        return rpcService.sendCommand('update_dht22', 'sensors', {'old_name':oldName, 'new_name':newName, 'interval':interval, 'offset':offset, 'offset_unit':offsetUnit});
-    }
 
     /**
      * Delete sensor
      */
     self.deleteSensor = function(uuid) {
-        return rpcService.sendCommand('delete_sensor', 'sensors', {'uuid':uuid});
-    };
+        return rpcService.sendCommand('delete_sensor', 'sensors', {'uuid': uuid});
+    }
+
+    /**
+     * Update sensor
+     */
+    self.updateSensor = function(uuid, data) {
+        return rpcService.sendCommand('update_sensor', 'sensors', {'uuid': uuid, 'data': data});
+    }
 
     /**
      * Get onewires devices
      */
     self.getOnewires = function() {
         return rpcService.sendCommand('get_onewire_devices', 'sensors');
-    };
-
-    /**
-     * Install onewire driver
-     */
-    self.installOnewire = function() {
-        return rpcService.sendCommand('install_onewire_driver', 'sensors');
-    };
-
-    /**
-     * Uninstall onewire driver
-     */
-    self.uninstallOnewire = function() {
-        return rpcService.sendCommand('uninstall_onewire_driver', 'sensors');
     };
 
     /**
@@ -156,6 +114,7 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
             }   
         }   
     });
+
 };
     
 var RaspIot = angular.module('RaspIot');

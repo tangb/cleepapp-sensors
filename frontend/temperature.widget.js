@@ -13,7 +13,7 @@ var widgetTemperatureDirective = function(raspiotService, sensorsService) {
             'color': '#FF7F00',
             'label': 'Temperature (°C)'
         };
-        self.hasDatabase = raspiotService.hasModule('database');
+        self.hasDatabase = raspiotService.isAppInstalled('database');
     }];
 
     return {

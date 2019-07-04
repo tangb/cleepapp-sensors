@@ -2,15 +2,14 @@
  * Sensors config directive
  * Handle sensors configuration
  */
-var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensorsService, confirm, $mdDialog) {
+var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensorsService, confirm, $mdDialog, $location) {
 
     var sensorsController = [function() {
         var self = this;
-        self.driverOnewire = false;
-        self.installingDriver = false;
+        self.drivers = {};
         self.devices = raspiotService.devices;
         self.name = '';
-        self.selectedGpios = [{'gpio':null, 'label':'wire'}];
+        self.selectedGpios = [];
         self.inverted = false;
         self.onewires = [];
         self.onewire = '';
@@ -34,17 +33,18 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         self.SUBTYPE_GENERIC = 'generic';
         self.SUBTYPE_ONEWIRE = 'onewire';
         self.SUBTYPE_DHT22 = 'dht22';
-        self.types = [
-            {label:'Motion', value:{type:self.TYPE_MOTION, subtype:self.SUBTYPE_GENERIC}},
-            {label:'Temperature (onewire)', value:{type:self.TYPE_TEMPERATURE, subtype:self.SUBTYPE_ONEWIRE}},
-            {label:'Temperature+humidity sensor (DHT22)', value:{type:self.TYPE_MULTI, subtype:self.SUBTYPE_DHT22}}
-        ];
-        self.type = self.types[0].value;
+        self.types = [];
+        //    {label:'Motion', value:{type:self.TYPE_MOTION, subtype:self.SUBTYPE_GENERIC}},
+        //    {label:'Temperature (onewire)', value:{type:self.TYPE_TEMPERATURE, subtype:self.SUBTYPE_ONEWIRE}},
+        //    {label:'Temperature+humidity sensor (DHT22)', value:{type:self.TYPE_MULTI, subtype:self.SUBTYPE_DHT22}}
+        //];
+        self.type = null; //self.types[0].value;
 
         /**
          * Search sensor by name
          */
-        self._searchSensorsByName = function(name) {
+        self._searchSensorsByName = function(name)
+        {
             founds = [];
 
             for( var i=0; i<self.devices.length; i++ ) {
@@ -60,8 +60,9 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         /**
          * Return sensor type according to types member
          */
-        self._getSensorType = function(sensor) {
-            for( type of self.types ) {
+        self._getSensorType = function(sensor)
+        {
+            for( var type of self.types ) {
                 if( type.value.type===sensor.type && type.value.subtype===sensor.subtype ) {
                     //strict type found
                     return type.value;
@@ -81,11 +82,12 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         /** 
          * Reset editor's values
          */
-        self._resetEditorValues = function() {
+        self._resetEditorValues = function()
+        {
             self.name = ''; 
-            self.selectedGpios = [{'gpio':null, 'label':'wire'}];
             self.inverted = false;
             self.type = self.types[0].value;
+            self.onSensorTypeChanged();
             self.interval = self.intervals[1].value;
             self.offset = 0;
             self.offsetUnit = self.offsetUnits[0].value;
@@ -93,12 +95,25 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
             self.onewire = '';
         };
 
+        /**
+         * Goto drivers page
+         */
+        self.installDrivers = function()
+        {
+            self.closeDialog(true);
+            $location.url('/module/system?tab=drivers')
+        };
+
         /** 
          * Close dialog
          */
-        self.closeDialog = function() {
-            //check values
-            if( self.name.length===0 )
+        self.closeDialog = function(force=false)
+        {
+            if( force===true )
+            {
+                $mdDialog.hide();
+            }
+            else if( self.name.length===0 )
             {   
                 toast.error('All fields are required');
             }   
@@ -111,14 +126,16 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         /** 
          * Cancel dialog
          */
-        self.cancelDialog = function() {
+        self.cancelDialog = function()
+        {
             $mdDialog.cancel();
         };  
 
         /**
          * Open dialog (internal use)
          */
-        self._openDialog = function(update) {
+        self._openDialog = function(update)
+        {
             return $mdDialog.show({
                 controller: function() { return self; },
                 controllerAs: 'sensorsCtl',
@@ -130,24 +147,72 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         };
 
         /**
+         * Event when sensor type changed.
+         * Used to define gpio component configuration (pin name)
+         */
+        self.onSensorTypeChanged = function()
+        {
+            if( self.type.type===self.TYPE_MOTION && self.type.subtype===self.SUBTYPE_GENERIC ||
+                self.type.subtype===self.SUBTYPE_DHT22 )
+            {
+                //single pin
+                self.selectedGpios = [{'gpio':null, 'label':'gpio'}];
+            }
+        };
+
+        /**
+         * Returns data to add or update sensor
+         */
+        self.getSensorData = function(type, subtype, update)
+        {
+            var data = {};
+            if( self.type.type===self.TYPE_MOTION )
+            {
+                data = {
+                    name: self.name,
+                    gpio: self.selectedGpios[0].gpio,
+                    inverted: self.inverted,
+                };
+            }
+            else if( self.type.type===self.TYPE_TEMPERATURE && self.type.subtype===self.SUBTYPE_ONEWIRE )
+            {
+                data = {
+                    name: self.name,
+                    device: self.onewire.device,
+                    path: self.onewire.path,
+                    interval: self.interval,
+                    offset: self.offset,
+                    offset_unit: self.offsetUnit,
+                };
+            }
+            else if( self.type.subtype===self.SUBTYPE_DHT22 )
+            {
+                data = {
+                    name: self.name,
+                    gpio: self.selectedGpios[0].gpio,
+                    interval: self.interval,
+                    offset: self.offset,
+                    offset_unit: self.offsetUnit,
+                };
+            }
+
+            //if update remove gpio that cannot be modified
+            if( update && (pos=Object.keys(data).indexOf('gpio'))!==-1 ) {
+                delete data.gpio;
+            }
+
+            return data;
+        };
+
+        /**
          * Add device
          */
-        self.openAddDialog = function() {
+        self.openAddDialog = function()
+        {
             self._resetEditorValues();
             self._openDialog(false)
                 .then(function() {
-                    if( self.type.type===self.TYPE_MOTION )
-                    {
-                        return sensorsService.addGenericMotionSensor(self.name, self.selectedGpios[0].gpio, self.inverted);
-                    }
-                    else if( self.type.type===self.TYPE_TEMPERATURE && self.type.subtype===self.SUBTYPE_ONEWIRE )
-                    {
-                        return sensorsService.addOnewireTemperatureSensor(self.name, self.onewire.device, self.onewire.path, self.interval, self.offset, self.offsetUnit, 'GPIO4');
-                    }
-                    else if( self.type.type===self.TYPE_MULTI && self.type.subtype===self.SUBTYPE_DHT22 )
-                    {
-                        return sensorsService.addDht22Sensor(self.name, self.selectedGpios[0].gpio, self.interval, self.offset, self.offsetUnit);
-                    }
+                    return sensorsService.addSensor(self.type.type, self.type.subtype, self.getSensorData(self.type.type, self.type.subtype, false));
                 })
                 .then(function() {
                     return raspiotService.reloadDevices();
@@ -163,32 +228,17 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         /**
          * Fill editor values
          */
-        self._fillEditorValues = function(device) {
-            self.oldName = device.name;
+        self._fillEditorValues = function(device)
+        {
             self.name = device.name;
             self.type = self._getSensorType(device);
-            if( self.type.type===self.TYPE_MOTION )
-            {
-                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'data'}];
-                self.inverted = device.inverted;
-            }
-            else if( self.type.type===self.TYPE_TEMPERATURE )
-            {
-                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'data'}];
-                self.interval = device.interval;
-                self.offset = device.offset;
-                self.offsetUnit = device.offsetunit;
-            }
-            else if( self.type.type===self.TYPE_HUMIDITY )
-            {
-                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'data'}];
-                self.interval = device.interval;
-            }
-            else if( self.type.subtype==self.SUBTYPE_DHT22 )
+
+            //subtypes first!
+            if( self.type.subtype==self.SUBTYPE_DHT22 )
             {
                 //need to know all dht22 sensors
                 founds = self._searchSensorsByName(device.name);
-                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'sensor wire'}];
+                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'gpio'}];
                 self.interval = device.interval;
                 if( founds.length===2 )
                 {
@@ -206,31 +256,37 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
                     self.offsetUnit = 'celsius';
                 }
             }
+            else if( self.type.type===self.TYPE_MOTION )
+            {
+                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'gpio'}];
+                self.inverted = device.inverted;
+            }
+            else if( self.type.type===self.TYPE_TEMPERATURE )
+            {
+                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'gpio'}];
+                self.interval = device.interval;
+                self.offset = device.offset;
+                self.offsetUnit = device.offsetunit;
+            }
+            else if( self.type.type===self.TYPE_HUMIDITY )
+            {
+                self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'gpio'}];
+                self.interval = device.interval;
+            }
 
         };
 
         /** 
          * Update device
          */
-        self.openUpdateDialog = function(device) {
-
+        self.openUpdateDialog = function(device)
+        {
             self._fillEditorValues(device);
 
             //open dialog
             self._openDialog(true)
                 .then(function() {
-                    if( self.type.type===self.TYPE_MOTION )
-                    {
-                        return sensorsService.updateGenericMotionSensor(device.uuid, self.name, self.inverted);
-                    }
-                    else if( self.type.type===self.TYPE_TEMPERATURE && self.type.subtype===self.SUBTYPE_ONEWIRE )
-                    {
-                        return sensorsService.updateOnewireTemperatureSensor(device.uuid, self.name, self.interval, self.offset, self.offsetUnit);
-                    }
-                    else if( self.type.subtype===self.SUBTYPE_DHT22)
-                    {
-                        return sensorsService.updateDht22Sensor(self.oldName, self.name, self.interval, self.offset, self.offsetUnit);
-                    }
+                    return sensorsService.updateSensor(device.uuid, self.getSensorData(self.type.type, self.type.subtype, true));
                 })
                 .then(function() {
                     return raspiotService.reloadDevices();
@@ -246,7 +302,8 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         /** 
          * Delete device
          */
-        self.openDeleteDialog = function(device) {
+        self.openDeleteDialog = function(device)
+        {
             confirm.open('Delete sensor?', 'All sensor data will be deleted and you will not be able to restore it!', 'Delete')
                 .then(function() {
                     return sensorsService.deleteSensor(device.uuid);
@@ -262,7 +319,8 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
         /**
          * Get onewire devices
          */
-        self.getOnewires = function() {
+        self.getOnewires = function()
+        {
             sensorsService.getOnewires()
                 .then(function(resp) {
                     //disable already used items
@@ -297,34 +355,34 @@ var sensorsConfigDirective = function($rootScope, toast, raspiotService, sensors
                 });
         };
 
-        /**
-         * Install onewire driver
-         */
-        self.installOnewire = function()
-        {
-            self.installingDriver = true;
+        //TODO handle driver install event
+        
 
-            sensorsService.installOnewire()
-                .then(function(resp) {
-                    //reload system config to handle restart
-                    return raspiotService.reloadModuleConfig('system');
-                })
-                .then(function() {
-                    self.driverOnewire = true;
-                    toast.success('Driver installed. Please restart.');
-                })
-                .finally(function() {
-                    self.installingDriver = false;
-                });
+        self.capitalize = function(str)
+        {
+            return str.charAt(0).toUpperCase() + str.slice(1);
         };
 
         /**
          * Init controller
          */
-        self.init = function() {
+        self.init = function()
+        {
             raspiotService.getModuleConfig('sensors')
                 .then(function(config) {
-                    self.driverOnewire = config.drivers.onewire;
+                    self.drivers = config.drivers;
+                    var types = [];
+                    for( var addon in config.sensorstypes) {
+                        types.push({
+                            label: self.capitalize(config.sensorstypes[addon].subtype) + ': ' + config.sensorstypes[addon].types.join('+'),
+                            value: {
+                                type: config.sensorstypes[addon].types[0],
+                                subtype: config.sensorstypes[addon].subtype,
+                            }
+                        });
+                    }
+                    self.types = types;
+                    self.type = self.types[0].value;
                 });
 
             //add module actions to fabButton
@@ -367,6 +425,6 @@ var sensorGpiosFilter = function($filter) {
 };
 
 var RaspIot = angular.module('RaspIot');
-RaspIot.directive('sensorsConfigDirective', ['$rootScope', 'toastService', 'raspiotService', 'sensorsService', 'confirmService', '$mdDialog', sensorsConfigDirective]);
+RaspIot.directive('sensorsConfigDirective', ['$rootScope', 'toastService', 'raspiotService', 'sensorsService', 'confirmService', '$mdDialog', '$location', sensorsConfigDirective]);
 RaspIot.filter('displayGpios', sensorGpiosFilter);
 

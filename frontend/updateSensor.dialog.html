@@ -15,23 +15,40 @@
         <md-dialog-content layout-padding>
         <div class="md-dialog-content">
 
-            <!-- name -->
-            <md-input-container class="md-block" flex-gt-sm>
-                <label>Name</label>
-                <input ng-model="sensorsCtl.name">
-            </md-input-container>
+            <div layout="row" layout-align="start center">
 
-            <!-- type -->
-            <md-input-container class="md-block" flex-gt-sm>
-                <label>Type</label>
-                <md-select ng-model="sensorsCtl.type" ng-disabled="true">
-                    <md-option ng-repeat="type in sensorsCtl.types" ng-value="type.value">{{type.label}}</md-option>
-                </md-select>
-            </md-input-container>
+                <div flex="50">
+                    <!-- sensor name -->
+                    <md-input-container class="md-block" flex-gt-sm>
+                        <label>Name</label>
+                        <input ng-model="sensorsCtl.name">
+                    </md-input-container>
 
-            <!-- motion -->
-            <div ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_MOTION && sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_GENERIC">
+                    <!-- sensor type -->
+                    <md-input-container class="md-block" flex-gt-sm>
+                        <label>Type</label>
+                        <md-select ng-model="sensorsCtl.type" ng-disabled="true">
+                            <md-option ng-repeat="type in sensorsCtl.types" ng-value="type.value">{{type.label}}</md-option>
+                        </md-select>
+                    </md-input-container>
+                </div>
+
+                <div flex="50" style="text-align:center;">
+                    <!-- sensor image -->
+                    <img ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_TEMPERATURE && sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_ONEWIRE" mod-img-src="images/ds18b20.png" height="200px">
+                    <img ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_MOTION && sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_GENERIC" mod-img-src="images/pir_motion.png" height="200px">
+                    <img ng-if="sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_DHT22" mod-img-src="images/dht22.png" height="200px">
+                </div>
+
+            </div>
+
+            <div ng-if="sensorsCtl.type.subtype!==sensorsCtl.SUBTYPE_ONEWIRE">
+                <!-- gpio configuration -->
                 <div gpios-pins-config readonly="true" selected-gpios="sensorsCtl.selectedGpios"></div>
+            </div>
+
+            <!-- motion parameters -->
+            <div ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_MOTION && sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_GENERIC">
                 <md-input-container class="md-block" flex-gt-sm>
                     <md-checkbox ng-model="sensorsCtl.inverted" aria-label="Revert state">
                         State is inverted?
@@ -39,40 +56,8 @@
                 </md-input-container>
             </div>
 
-            <!-- temperature onewire -->
-            <div ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_TEMPERATURE && sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_ONEWIRE">
-
-                <!-- driver not installed -->
-                <div layout-gt-sm="row" ng-if="sensorsCtl.subtype===sensorsCtl.SUBTYPE_ONEWIRE && !sensorsCtl.driverOnewire">
-                    <div class="padding-row-with-input">
-                        <span>Onewire driver is not installed</span>
-                    </div>
-                    <div>
-                        <md-button class="md-raised md-primary" ng-disabled="sensorsCtl.installingDriver" ng-click="sensorsCtl.installOnewire()">
-                            Install driver
-                        </md-button>
-                    </div>
-                </div>
-
-                <!-- driver installed -->
-                <div layout-gt-sm="row" ng-if="sensorsCtl.subtype===sensorsCtl.SUBTYPE_ONEWIRE && sensorsCtl.driverOnewire">
-                    <div>
-                        <md-button class="md-raised md-primary" ng-disabled="true" ng-click="sensorsCtl.getOnewires()">
-                            Scan onewire bus
-                        </md-button>
-                    </div>
-                    <md-input-container class="md-block" flex-gt-sm>
-                        <label>Onewire devices found</label>
-                        <md-select ng-model="sensorsCtl.onewire" ng-disabled="true">
-                            <md-option ng-disabled="onewire.disable" ng-repeat="onewire in sensorsCtl.onewires" ng-value="onewire">{{onewire.device}}</md-option>
-                        </md-select>
-                    </md-input-container>
-                </div>
-
-            </div>
-
             <!-- temperature parameters -->
-            <div ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_TEMPERATURE">
+            <div ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_TEMPERATURE || sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_DHT22">
 
                 <div layout-gt-sm="row">
                     <md-input-container class="md-block" flex-gt-sm>
@@ -94,32 +79,6 @@
                 </div>
 
             </div>
-
-            <!-- dht22 parameters -->
-            <div ng-if="sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_DHT22">
-
-                <div gpios-pins-config readonly="true" selected-gpios="sensorsCtl.selectedGpios"></div>
-                <div layout-gt-sm="row">
-                    <md-input-container class="md-block" flex-gt-sm>
-                        <label>Interval</label>
-                        <md-select ng-model="sensorsCtl.interval">
-                            <md-option ng-repeat="interval in sensorsCtl.intervals" ng-value="interval.value">{{interval.label}}</md-option>
-                        </md-select>
-                    </md-input-container>
-                    <md-input-container class="md-block" flex-gt-sm>
-                        <label>Temperature offset</label>
-                        <input type="number" min="0" ng-model="sensorsCtl.offset">
-                    </md-input-container>
-                    <md-input-container class="md-block" flex-gt-sm>
-                        <label>Temperature offset type</label>
-                        <md-select ng-model="sensorsCtl.offsetUnit">
-                            <md-option ng-repeat="offset in sensorsCtl.offsetUnits" ng-value="offset.value">{{offset.label}}</md-option>
-                        </md-select>
-                    </md-input-container>
-                </div>
-
-            </div>
-
 
         </div>
         </md-dialog-content>

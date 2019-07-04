@@ -11,7 +11,7 @@ var widgetMotionDirective = function(raspiotService, sensorsService) {
             'type': 'line',
             'color': '#24A222'
         };
-        self.hasDatabase = raspiotService.hasModule('database');
+        self.hasDatabase = raspiotService.isAppInstalled('database');
 
         //set background color at startup
         if( self.device && self.device.on )

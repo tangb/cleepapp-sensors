@@ -13,7 +13,7 @@ var widgetHumidityDirective = function(raspiotService, sensorsService) {
             'color': '#FF7F00',
             'label': 'Humidity (%)'
         };
-        self.hasDatabase = raspiotService.hasModule('database');
+        self.hasDatabase = raspiotService.isAppInstalled('database');
     }];
 
     return {
