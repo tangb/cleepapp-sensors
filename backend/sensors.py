@@ -52,6 +52,7 @@ class Sensors(RaspIotModule):
         self.raspi_gpios = {}
         self.addons_by_name = {}
         self.addons_by_type = {}
+        self.sensors_types = {}
       
         #addons
         self._register_addon(SensorMotionGeneric(self))
@@ -74,9 +75,15 @@ class Sensors(RaspIotModule):
                 raise Exception(u'Subtype "%s" already registered in type "%s"' % (addon.SUBTYPE, type))
             self.addons_by_type[type][addon.SUBTYPE] = addon
 
+        #save sensors types (by addons)
+        self.sensors_types[addon.__class__.__name__] = {
+            u'types': addon.TYPES,
+            u'subtype': addon.SUBTYPE,
+        }
+
         #save addon by name
         self.addons_by_name[addon.__class__.__name__] = addon
-        
+
         #inject in sensors public addon methods
         blacklist = [
             u'add_gpio',
@@ -116,7 +123,7 @@ class Sensors(RaspIotModule):
             addon = self._get_addon(sensor[u'type'], sensor[u'subtype'])
             if addon is None:
                 continue
-            self._start_sensor_task(addon.get_task(sensor), sensor)
+            self._start_sensor_task(addon.get_task(sensor), [sensor])
 
     def _stop(self):
         """
@@ -195,6 +202,7 @@ class Sensors(RaspIotModule):
         """
         config = {
             u'drivers': {},
+            u'sensorstypes': self.sensors_types
         }
 
         #add drivers
@@ -304,9 +312,15 @@ class Sensors(RaspIotModule):
         sensor_devices = []
         gpio_devices = []
         try:
+            self.logger.debug(u'Addon add with data: %s' % data)
             (gpios, sensors) = addon.add(**data).values()
+            if not isinstance(gpios, list):
+                raise Exception(u'Invalid gpios type. Must be a list')
+            if not isinstance(sensors, list):
+                raise Exception(u'Invalid sensors type. Must be a list')
 
             #add gpios
+            self.logger.debug('gpios=%s' % gpios)
             for gpio in gpios:
                 self.logger.debug(u'add_gpio with: %s' % gpio)
                 resp_gpio = self.send_command(u'add_gpio', u'gpios', gpio)
@@ -327,7 +341,7 @@ class Sensors(RaspIotModule):
                 sensor_devices.append(sensor_device)
                 
             #start task
-            self._start_sensor_task(addon.get_task(sensor_devices), sensor_devices)
+            self._start_sensor_task(addon.get_task(sensor_devices[0]), sensor_devices)
 
             return sensor_devices
 
@@ -370,11 +384,17 @@ class Sensors(RaspIotModule):
             self._stop_sensor_task(sensor)
             
             (gpios, sensors) = addon.delete(sensor).values()
+            if not isinstance(gpios, list):
+                raise Exception(u'Invalid gpios type. Must be a list')
+            if not isinstance(sensors, list):
+                raise Exception(u'Invalid sensors type. Must be a list')
                                    
             #unconfigure gpios
+            self.logger.debug('Gpios=%s' % gpios)
             for gpio in gpios:
                 #is a reserved gpio
-                resp = self.send_command(u'is_reserved_gpio', u'gpios', {u'uuid': gpio[u'uuid']})
+                self.logger.debug('is_reserved_gpio for gpio "%s"' % gpio)
+                resp = self.send_command(u'is_reserved_gpio', u'gpios', {u'gpio': gpio[u'uuid']})
                 self.logger.debug(u'is_reserved_gpio: %s' % resp)
                 if resp[u'error']:
                     raise CommandError(resp[u'message'])
@@ -436,8 +456,16 @@ class Sensors(RaspIotModule):
         sensor_devices = []
         gpio_devices = []
         try:
+            #prepare data mixing all params from all sensors
+            #sensors = self._search_device(u'name', sensor[u'name'])
+            #for sensor in sensors:
+            #    data.update(sensor)
             data[u'sensor'] = sensor
             (gpios, sensors) = addon.update(**data).values()
+            if not isinstance(gpios, list):
+                raise Exception(u'Invalid gpios type. Must be a list')
+            if not isinstance(sensors, list):
+                raise Exception(u'Invalid sensors type. Must be a list')
 
             #update gpios
             for gpio in gpios:
@@ -448,16 +476,15 @@ class Sensors(RaspIotModule):
                 
             #update sensors
             for sensor in sensors:
-                sensor_device = self._update_device(sensor[u'uuid'], sensor)
-                if sensor_device is None:
+                if not self._update_device(sensor[u'uuid'], sensor):
                     raise CommandError(u'Unable to save sensor update')
-                sensor_devices.append(sensor_device)
+                sensor_devices.append(sensor)
                 
             #restart sensor task
-            task = addon.get_task(sensor_device)
+            task = addon.get_task(sensor)
             if task:
-                self._stop_sensor_task(sensor_device)
-                self._start_sensor_task(task, sensor_device)
+                self._stop_sensor_task(sensor)
+                self._start_sensor_task(task, [sensor])
                 
             return sensor_devices
         
@@ -481,6 +508,7 @@ class Sensors(RaspIotModule):
         #save and start task
         for sensor in sensors:
             self._tasks_by_device_uuid[sensor[u'uuid']] = task
+        self.logger.debug(u'Start task for sensor "%s" [%s]' % (sensor[u'name'], id(task)))
         task.start()
 
     def _stop_sensor_task(self, sensor):
@@ -501,7 +529,7 @@ class Sensors(RaspIotModule):
             return
 
         #stop task
-        self.logger.debug(u'Stop task for sensor %s' % sensor[u'name'])
+        self.logger.debug(u'Stop task for sensor "%s" [%s]' % (sensor[u'name'], id(task)))
         task.stop()
         
         #purge not running task
