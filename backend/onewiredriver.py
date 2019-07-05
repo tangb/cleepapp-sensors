@@ -22,7 +22,7 @@ class OnewireDriver(Driver):
         Args:
             cleep_filesystem (CleepFilesystem): Cleep filesystem instance
         """
-        Driver.__init__(self, cleep_filesystem, Driver.DRIVER_GPIO, u'Onewire')
+        Driver.__init__(self, cleep_filesystem, Driver.DRIVER_GPIO, u'onewire')
 
         self.configtxt = ConfigTxt(self.cleep_filesystem)
         self.etcmodules = EtcModules(self.cleep_filesystem)

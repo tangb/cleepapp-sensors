@@ -52,7 +52,7 @@
                 <!-- onewire configuration -->
 
                 <!-- driver not installed -->
-                <div layout-gt-sm="row" ng-if="!sensorsCtl.drivers['Onewire']">
+                <div layout-gt-sm="row" ng-if="!sensorsCtl.drivers['onewire']">
                     <div class="padding-row-with-input">
                         <span>Onewire driver is not installed</span>
                     </div>
@@ -64,7 +64,7 @@
                 </div>
 
                 <!-- driver installed -->
-                <div layout-gt-sm="row" ng-if="sensorsCtl.drivers['Onewire']">
+                <div layout-gt-sm="row" ng-if="sensorsCtl.drivers['onewire']">
                     <div>
                         <md-button class="md-raised md-primary" ng-disabled="sensorsCtl.updateDevice" ng-click="sensorsCtl.getOnewires()">
                             Scan onewire bus

@@ -1357,7 +1357,7 @@ class OnewireSensorTests(unittest.TestCase):
 
     def test_get_onewire_devices(self):
         addon = self.get_addon()
-        driver = addon.drivers['Onewire']
+        driver = addon.drivers['onewire']
         driver.is_installed = lambda: True
         path = os.path.join(addon.ONEWIRE_PATH, '28-0000054c2ec2', 'w1_slave')
         os.makedirs(os.path.dirname(path))
@@ -1373,7 +1373,7 @@ class OnewireSensorTests(unittest.TestCase):
 
     def test_get_onewire_devices_with_driver_not_installed(self):
         addon = self.get_addon()
-        driver = addon.drivers['Onewire']
+        driver = addon.drivers['onewire']
         driver.is_installed = lambda: False
 
         with self.assertRaises(CommandError) as cm:
