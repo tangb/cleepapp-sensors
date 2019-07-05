@@ -185,7 +185,8 @@ class SensorOnewire(Sensor):
             event (MessageRequest): gpio event
             sensor (dict): sensor data
         """
-        if event[u'event']==u'system.driver.install' and event[u'params'][u'drivername']=='onewire':
+        if event[u'event']==u'system.driver.install' and event[u'params'][u'drivername']=='onewire' and event[u'params'][u'installing']==False:
+            self.logger.debug(u'Process "onewire" driver install event')
             #reserve onewire gpio
             params = {
                 u'name': u'reserved_onewire',
@@ -195,11 +196,14 @@ class SensorOnewire(Sensor):
             resp = self.sensors.send_command(u'reserve_gpio', u'gpios', params)
             self.logger.debug(u'Reserve gpio result: %s' % resp)
 
-        elif event[u'event']==u'system.driver.uninstall' and event[u'params'][u'drivername']=='onewire':
+        elif event[u'event']==u'system.driver.uninstall' and event[u'params'][u'drivername']=='onewire' and event[u'params'][u'uninstalling']==False:
+            self.logger.debug(u'Process "onewire" driver uninstall event')
             #free onewire gpio
-            sensor = self._search_by_gpio(self.ONEWIRE_RESERVED_GPIO)
-            if sensor:
-                resp = self.sensors.send_command('delete_gpio', u'gpios', {u'uuid': sensor[u'gpios'][0][u'uuid']})
+            resp = self.sensors.send_command(u'get_reserved_gpios', u'gpios', {u'usage': self.USAGE_ONEWIRE})
+            self.logger.debug('Get_reserved_gpios response: %s' % resp)
+            if not resp[u'error'] and resp[u'data'] and len(resp[u'data'])>0:
+                sensor = resp[u'data'][0]
+                resp = self.sensors.send_command('delete_gpio', u'gpios', {u'uuid': sensor[u'uuid']})
                 self.logger.debug(u'Delete gpio result: %s' % resp)
                 
     def _read_onewire_temperature(self, sensor):
