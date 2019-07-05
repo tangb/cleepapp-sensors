@@ -82,6 +82,7 @@ class SensorMotionGeneric(Sensor):
         resp = self.send_command(u'is_gpio_on', u'gpios', {u'gpio': gpio})
         if not resp[u'error']:
             sensor[u'on'] = resp[u'data']
+        sensor['lastupdate'] = int(time.time())
         
         return {
             u'gpios': [gpio,],
