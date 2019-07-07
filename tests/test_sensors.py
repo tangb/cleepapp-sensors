@@ -1295,7 +1295,8 @@ class OnewireSensorTests(unittest.TestCase):
             'startup': False,
             'event': 'system.driver.install',
             'params': {
-                'drivername': 'onewire'
+                'drivername': 'onewire',
+                'installing': False,
             }
         }
         addon = self.get_addon()
@@ -1327,16 +1328,18 @@ class OnewireSensorTests(unittest.TestCase):
             'startup': False,
             'event': 'system.driver.uninstall',
             'params': {
-                'drivername': 'onewire'
+                'drivername': 'onewire',
+                'uninstalling': False,
             }
         }
         addon = self.get_addon()
         self.session.mock_command('reserve_gpio', lambda: {'error': False, 'data': None})
         self.session.mock_command('delete_gpio', lambda: {'error': False, 'data': None})
-        addon._search_by_gpio = lambda g: {'name': 'name', 'gpios': [{'gpio':'GPIO18', 'uuid':'123-456-789'}]}
+        self.session.mock_command('get_reserved_gpios', lambda: {'error': False, 'data': [{'gpio': 'GPIO4', 'uuid':'123-456-789'}]})
         
         addon.process_event(event, None)
         self.assertEqual(self.session.get_command_calls('reserve_gpio'), 0, 'Reserve_gpio should not be called')
+        self.assertEqual(self.session.get_command_calls('get_reserved_gpios'), 1, 'Get_reserved_gpio should be called')
         self.assertEqual(self.session.get_command_calls('delete_gpio'), 1, 'Delete_gpio should be called')
 
     def test_process_event_uninstall_unhandled_driver(self):

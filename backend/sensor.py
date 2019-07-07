@@ -19,7 +19,7 @@ class Sensor():
         self.raspi_gpios = {}
         self.drivers = {}
         self.cleep_filesystem = sensors.cleep_filesystem
-        self._task = None
+        self.__task = None
 
     def _register_driver(self, driver):
         """
@@ -173,10 +173,10 @@ class Sensor():
             Task: task instance that will be launched by sensors instance or None if no task needed
         """
         #instanciate singleton
-        if self._task is None:
-            self._task = self._get_task(sensors)
+        if self.__task is None:
+            self.__task = self._get_task(sensors)
 
-        return self._task
+        return self.__task
 
     def _get_task(self, sensors):
         """
