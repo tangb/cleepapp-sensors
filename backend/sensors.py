@@ -21,16 +21,16 @@ class Sensors(RaspIotModule):
     """
     MODULE_AUTHOR = u'Cleep'
     MODULE_VERSION = u'1.0.0'
-    MODULE_CATEGORY = 'APPLICATION'
+    MODULE_CATEGORY = u'APPLICATION'
     MODULE_PRICE = 0
     MODULE_DEPS = [u'gpios']
     MODULE_DESCRIPTION = u'Implements easily and quickly sensors like temperature, motion, light...'
     MODULE_LONGDESCRIPTION = u'With this module you will be able to follow environment temperature, detect some motion around your device, detect when light level is dim... and trigger some action according to those stimuli.'
     MODULE_TAGS = [u'sensors', u'temperature', u'motion' u'onewire', u'1wire']
     MODULE_COUNTRY = None
-    MODULE_URLINFO = None
+    MODULE_URLINFO = u'https://github.com/tangb/cleepmod-sensors'
     MODULE_URLHELP = None
-    MODULE_URLBUGS = None
+    MODULE_URLBUGS = u'https://github.com/tangb/cleepmod-sensors/issues'
     MODULE_URLSITE = None
 
     MODULE_CONFIG_FILE = u'sensors.conf'
