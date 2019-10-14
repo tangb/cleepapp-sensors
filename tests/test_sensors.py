@@ -68,7 +68,7 @@ class FakeDriver():
 class CoreSensorsTests(unittest.TestCase):
 
     def setUp(self):
-        self.session = session.Session(logging.CRITICAL)
+        self.session = session.TestSession(logging.CRITICAL)
         self.session.mock_command('get_raspi_gpios', self.__get_raspi_gpios)
         self.session.mock_command('get_assigned_gpios', self.__get_assigned_gpios_empty)
         self.module = self.session.setup(Sensors)
