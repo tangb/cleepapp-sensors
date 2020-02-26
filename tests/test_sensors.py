@@ -69,6 +69,7 @@ class CoreSensorsTests(unittest.TestCase):
 
     def setUp(self):
         self.session = session.TestSession(logging.CRITICAL)
+        logging.basicConfig(level=logging.CRITICAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session.mock_command('get_raspi_gpios', self.__get_raspi_gpios)
         self.session.mock_command('get_assigned_gpios', self.__get_assigned_gpios_empty)
         self.module = self.session.setup(Sensors)
@@ -918,7 +919,8 @@ class OnewireSensorTests(unittest.TestCase):
     ONEWIRE_PATH = '/tmp/onewire'
 
     def setUp(self):
-        self.session = session.Session(logging.CRITICAL)
+        self.session = session.TestSession(logging.CRITICAL)
+        logging.basicConfig(level=logging.CRITICAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session.mock_command('get_raspi_gpios', lambda: {
             'error': False,
             'data': {'GPIO18': 56}
@@ -1390,7 +1392,8 @@ class OnewireSensorTests(unittest.TestCase):
 class MotionGenericSensorTests(unittest.TestCase):
 
     def setUp(self):
-        self.session = session.Session(logging.CRITICAL)
+        self.session = session.TestSession(logging.CRITICAL)
+        logging.basicConfig(level=logging.CRITICAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session.mock_command('get_raspi_gpios', lambda: {
             'error': False,
             'data': {'GPIO18': 56}
@@ -1707,7 +1710,8 @@ class MotionGenericSensorTests(unittest.TestCase):
 class Dht22SensorTests(unittest.TestCase):
 
     def setUp(self):
-        self.session = session.Session(logging.CRITICAL)
+        self.session = session.TestSession(logging.CRITICAL)
+        logging.basicConfig(level=logging.CRITICAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session.mock_command('get_raspi_gpios', lambda: {
             'error': False,
             'data': {'GPIO18': 56}
