@@ -1,3 +1,3 @@
-# cleepmod-sensors
+# cleepapp-sensors
 
-Sensors module for CleepOS
+Sensors module for Cleep

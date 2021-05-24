@@ -1,29 +1,30 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-import logging
-from raspiot.libs.drivers.driver import Driver
-from raspiot.libs.configs.configtxt import ConfigTxt
-from raspiot.libs.configs.etcmodules import EtcModules
+from cleep.libs.drivers.driver import Driver
+from cleep.libs.configs.configtxt import ConfigTxt
+from cleep.libs.configs.etcmodules import EtcModules
+
 
 class OnewireDriver(Driver):
     """
     Onewire driver
     """
 
-    MODULE_ONEWIRETHERM = u'w1-therm' #deprecated ?
-    MODULE_ONEWIREGPIO = u'w1-gpio'
+    DRIVER_NAME = "onewire"
+    MODULE_ONEWIRETHERM = "w1-therm"  # deprecated ?
+    MODULE_ONEWIREGPIO = "w1-gpio"
 
-    def __init__(self, cleep_filesystem):
+    def __init__(self):
         """
         Constructor
-
-        Args:
-            cleep_filesystem (CleepFilesystem): Cleep filesystem instance
         """
-        Driver.__init__(self, cleep_filesystem, Driver.DRIVER_GPIO, u'onewire')
+        Driver.__init__(self, Driver.DRIVER_ELECTRONIC, OnewireDriver.DRIVER_NAME)
 
+    def _on_registered(self):
+        """
+        Driver registered
+        """
         self.configtxt = ConfigTxt(self.cleep_filesystem)
         self.etcmodules = EtcModules(self.cleep_filesystem)
 
@@ -34,8 +35,11 @@ class OnewireDriver(Driver):
         Args:
             params (any): extra parameters (optionnal)
         """
-        if not self.etcmodules.enable_module(self.MODULE_ONEWIREGPIO) or not self.configtxt.enable_onewire():
-            raise Exception(u'Unable to install onewire system module')
+        if (
+            not self.etcmodules.enable_module(self.MODULE_ONEWIREGPIO)
+            or not self.configtxt.enable_onewire()
+        ):
+            raise Exception("Unable to install onewire system module")
 
         return True
 
@@ -46,8 +50,11 @@ class OnewireDriver(Driver):
         Args:
             params (any): extra parameters (optionnal)
         """
-        if not self.etcmodules.disable_module(self.MODULE_ONEWIREGPIO) or not self.configtxt.disable_onewire():
-            raise Exception(u'Unable to uninstall onewire system module')
+        if (
+            not self.etcmodules.disable_module(self.MODULE_ONEWIREGPIO)
+            or not self.configtxt.disable_onewire()
+        ):
+            raise Exception("Unable to uninstall onewire system module")
 
         return True
 
@@ -58,5 +65,14 @@ class OnewireDriver(Driver):
         Returns:
             bool: True if driver installed
         """
-        return True if self.etcmodules.is_module_enabled(self.MODULE_ONEWIREGPIO) and self.configtxt.is_onewire_enabled() else False
+        return self.etcmodules.is_module_enabled(self.MODULE_ONEWIREGPIO) and self.configtxt.is_onewire_enabled()
+
+    def require_reboot(self):
+        """
+        Require reboot after driver install/uninstall
+
+        Returns:
+            True if reboot is required
+        """
+        return True
 

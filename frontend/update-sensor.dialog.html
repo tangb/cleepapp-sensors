@@ -12,8 +12,7 @@
             </div>
         </md-toolbar>
 
-        <md-dialog-content layout-padding>
-        <div class="md-dialog-content">
+        <md-dialog-content class="md-dialog-content" layout-padding>
 
             <div layout="row" layout-align="start center">
 
@@ -44,7 +43,7 @@
 
             <div ng-if="sensorsCtl.type.subtype!==sensorsCtl.SUBTYPE_ONEWIRE">
                 <!-- gpio configuration -->
-                <div gpios-pins-config readonly="true" selected-gpios="sensorsCtl.selectedGpios"></div>
+                <div gpios-pins-component readonly="true" selected-gpios="sensorsCtl.selectedGpios"></div>
             </div>
 
             <!-- motion parameters -->
@@ -80,7 +79,6 @@
 
             </div>
 
-        </div>
         </md-dialog-content>
 
         <md-dialog-actions layout="row">

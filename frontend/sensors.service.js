@@ -2,20 +2,19 @@
  * Sensors service
  * Handle sensors module requests
  */
-var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
+angular.module('Cleep')
+.service('sensorsService', ['$q', '$rootScope', 'rpcService', 'cleepService',
+function($q, $rootScope, rpcService, cleepService) {
     var self = this;
     
     /**
      * Init module devices
      */
     self.initDevices = function(devices) {   
-        for( var uuid in devices )
-        {   
-            if( devices[uuid].type==='motion' )
-            {
-                //change current color if gpio is on
-                if( devices[uuid].on )
-                {   
+        for( var uuid in devices ) {   
+            if( devices[uuid].type==='motion' ) {
+                // change current color if gpio is on
+                if( devices[uuid].on ) {   
                     devices[uuid].__widget.mdcolors = '{background:"default-accent-400"}';
                 }   
             }
@@ -56,13 +55,11 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
      * Catch motion on event
      */
     $rootScope.$on('sensors.motion.on', function(event, uuid, params) {
-        for( var i=0; i<raspiotService.devices.length; i++ )
-        {   
-            if( raspiotService.devices[i].uuid===uuid )
-            {   
-                raspiotService.devices[i].lastupdate = params.lastupdate;
-                raspiotService.devices[i].on = true;
-                raspiotService.devices[i].__widget.mdcolors = '{background:"default-accent-400"}';
+        for( var i=0; i<cleepService.devices.length; i++ ) {   
+            if( cleepService.devices[i].uuid===uuid ) {   
+                cleepService.devices[i].lastupdate = params.lastupdate;
+                cleepService.devices[i].on = true;
+                cleepService.devices[i].__widget.mdcolors = '{background:"default-accent-400"}';
                 break;
             }   
         }   
@@ -72,13 +69,11 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
      * Catch motion off event
      */
     $rootScope.$on('sensors.motion.off', function(event, uuid, params) {
-        for( var i=0; i<raspiotService.devices.length; i++ )
-        {   
-            if( raspiotService.devices[i].uuid===uuid )
-            {
-                raspiotService.devices[i].lastupdate = params.lastupdate;
-                raspiotService.devices[i].on = false;
-                raspiotService.devices[i].__widget.mdcolors = '{background:"default-primary-300"}';
+        for( var i=0; i<cleepService.devices.length; i++ ) {
+            if( cleepService.devices[i].uuid===uuid ) {
+                cleepService.devices[i].lastupdate = params.lastupdate;
+                cleepService.devices[i].on = false;
+                cleepService.devices[i].__widget.mdcolors = '{background:"default-primary-300"}';
                 break;
             }   
         }   
@@ -88,13 +83,11 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
      * Catch temperature events
      */
     $rootScope.$on('sensors.temperature.update', function(event, uuid, params) {
-        for( var i=0; i<raspiotService.devices.length; i++ )
-        {   
-            if( raspiotService.devices[i].uuid===uuid )
-            {   
-                raspiotService.devices[i].lastupdate = params.lastupdate;
-                raspiotService.devices[i].celsius = params.celsius;
-                raspiotService.devices[i].fahrenheit = params.fahrenheit;
+        for( var i=0; i<cleepService.devices.length; i++ ) {   
+            if( cleepService.devices[i].uuid===uuid ) {   
+                cleepService.devices[i].lastupdate = params.lastupdate;
+                cleepService.devices[i].celsius = params.celsius;
+                cleepService.devices[i].fahrenheit = params.fahrenheit;
                 break;
             }   
         }   
@@ -104,19 +97,14 @@ var sensorsService = function($q, $rootScope, rpcService, raspiotService) {
      * Catch humidity events
      */
     $rootScope.$on('sensors.humidity.update', function(event, uuid, params) {
-        for( var i=0; i<raspiotService.devices.length; i++ )
-        {   
-            if( raspiotService.devices[i].uuid===uuid )
-            {   
-                raspiotService.devices[i].lastupdate = params.lastupdate;
-                raspiotService.devices[i].humidity = params.humidity;
+        for( var i=0; i<cleepService.devices.length; i++ ) {   
+            if( cleepService.devices[i].uuid===uuid ) {   
+                cleepService.devices[i].lastupdate = params.lastupdate;
+                cleepService.devices[i].humidity = params.humidity;
                 break;
             }   
         }   
     });
 
-};
-    
-var RaspIot = angular.module('RaspIot');
-RaspIot.service('sensorsService', ['$q', '$rootScope', 'rpcService', 'raspiotService', sensorsService]);
+}]);
 

@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-class SensorsUtils():
+
+class SensorsUtils:
     """
     Sensors utils
     """
-    
-    TEMP_CELSIUS = 'celsius'
-    TEMP_FAHRENHEIT = 'fahrenheit'
+
+    TEMP_CELSIUS = "celsius"
+    TEMP_FAHRENHEIT = "fahrenheit"
 
     @staticmethod
     def convert_temperatures_from_celsius(celsius, offset, offset_unit):
@@ -21,27 +22,27 @@ class SensorsUtils():
 
         Returns:
             tuple: celsius and fahrenheit temperatures::
-            
+
                 (float: celsius, float: fahrenheit)
 
         """
         tempC = None
         tempF = None
-        if offset is not None and offset!=0:
-            if offset_unit==SensorsUtils.TEMP_CELSIUS:
-                #apply offset on celsius value
+        if offset is not None and offset != 0:
+            if offset_unit == SensorsUtils.TEMP_CELSIUS:
+                # apply offset on celsius value
                 tempC = celsius + offset
-                tempF = (tempC * 9/5) + 32
+                tempF = (tempC * 9 / 5) + 32
             else:
-                #apply offset on computed fahrenheit value
-                tempF = (celsius * 9/5) + 32 + offset
-                tempC = (tempF - 32) * 5/9
+                # apply offset on computed fahrenheit value
+                tempF = (celsius * 9 / 5) + 32 + offset
+                tempC = (tempF - 32) * 5 / 9
         else:
-            #no offset
+            # no offset
             tempC = celsius
-            tempF = (celsius * 9/5) + 32
+            tempF = (celsius * 9 / 5) + 32
 
-        return (round(tempC,2), round(tempF,2))
+        return (round(tempC, 2), round(tempF, 2))
 
     @staticmethod
     def convert_temperatures_from_fahrenheit(fahrenheit, offset, offset_unit):
@@ -58,26 +59,26 @@ class SensorsUtils():
             offset_unit (string): temperature offset unit
 
         Returns:
-        
+
             tuple: celsius and fahrenheit temperatures::
-            
+
                 (float: celsius, float: fahrenheit)
-                
+
         """
         tempC = None
         tempF = None
-        if offset is not None and offset!=0:
-            if offset_unit==SensorsUtils.TEMP_CELSIUS:
-                #apply offset on celsius value
-                tempC = (fahrenheit - 32) * 5/9 + offset
-                tempF = (tempC * 9/5) + 32
+        if offset is not None and offset != 0:
+            if offset_unit == SensorsUtils.TEMP_CELSIUS:
+                # apply offset on celsius value
+                tempC = (fahrenheit - 32) * 5 / 9 + offset
+                tempF = (tempC * 9 / 5) + 32
             else:
-                #apply offset on computed fahrenheit value
+                # apply offset on computed fahrenheit value
                 tempF = fahrenheit + offset
-                tempC = (tempF - 32) * 5/9
+                tempC = (tempF - 32) * 5 / 9
         else:
-            #no offset
+            # no offset
             tempF = fahrenheit
-            tempC = (tempF - 32) * 5/9
+            tempC = (tempF - 32) * 5 / 9
 
-        return (round(tempC,2), round(tempF,2))
+        return (round(tempC, 2), round(tempF, 2))

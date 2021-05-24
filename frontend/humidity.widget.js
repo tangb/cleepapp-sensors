@@ -2,7 +2,10 @@
  * Humidity widget
  * Display humidity dashboard widget
  */
-var widgetHumidityDirective = function(raspiotService, sensorsService) {
+angular
+.module('Cleep')
+.directive('widgetHumidityDirective', ['cleepService', 'sensorsService',
+function(cleepService, sensorsService) {
 
     var widgetHumidityController = ['$scope', function($scope) {
         var self = this;
@@ -13,7 +16,7 @@ var widgetHumidityDirective = function(raspiotService, sensorsService) {
             'color': '#FF7F00',
             'label': 'Humidity (%)'
         };
-        self.hasDatabase = raspiotService.isAppInstalled('database');
+        self.hasDatabase = cleepService.isAppInstalled('database');
     }];
 
     return {
@@ -26,8 +29,4 @@ var widgetHumidityDirective = function(raspiotService, sensorsService) {
         controller: widgetHumidityController,
         controllerAs: 'widgetCtl'
     };
-};
-
-var RaspIot = angular.module('RaspIot');
-RaspIot.directive('widgetHumidityDirective', ['raspiotService', 'sensorsService', widgetHumidityDirective]);
-
+}]);

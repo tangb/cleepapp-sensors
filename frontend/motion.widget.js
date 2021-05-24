@@ -2,7 +2,10 @@
  * Motion widget directive
  * Display motion dashboard widget
  */
-var widgetMotionDirective = function(raspiotService, sensorsService) {
+angular
+.module('Cleep')
+.directive('widgetMotionDirective', ['cleepService', 'sensorsService',
+function(cleepService, sensorsService) {
 
     var widgetMotionController = ['$scope', function($scope) {
         var self = this;
@@ -11,7 +14,7 @@ var widgetMotionDirective = function(raspiotService, sensorsService) {
             'type': 'line',
             'color': '#24A222'
         };
-        self.hasDatabase = raspiotService.isAppInstalled('database');
+        self.hasDatabase = cleepService.isAppInstalled('database');
 
         //set background color at startup
         if( self.device && self.device.on )
@@ -30,8 +33,4 @@ var widgetMotionDirective = function(raspiotService, sensorsService) {
         controller: widgetMotionController,
         controllerAs: 'widgetCtl'
     };
-};
-
-var RaspIot = angular.module('RaspIot');
-RaspIot.directive('widgetMotionDirective', ['raspiotService', 'sensorsService', widgetMotionDirective]);
-
+}]);

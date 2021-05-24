@@ -8,9 +8,9 @@ from backend.sensors import Sensors
 from backend.sensor import Sensor
 from backend.onewiredriver import OnewireDriver
 from backend.sensorsutils import SensorsUtils
-from raspiot.utils import InvalidParameter, MissingParameter, CommandError
-from raspiot.libs.tests import session
-from raspiot.libs.internals.task import Task
+from cleep.exception import InvalidParameter, MissingParameter, CommandError
+from cleep.libs.tests import session
+from cleep.libs.internals.task import Task
 from mock import Mock
 
 class FakeSensor(Sensor):
@@ -65,14 +65,16 @@ class FakeDriver():
     def is_installed(self):
         return True
 
-class CoreSensorsTests(unittest.TestCase):
+class SensorsTests(unittest.TestCase):
 
     def setUp(self):
-        self.session = session.TestSession(logging.CRITICAL)
-        logging.basicConfig(level=logging.CRITICAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
-        self.session.mock_command('get_raspi_gpios', self.__get_raspi_gpios)
-        self.session.mock_command('get_assigned_gpios', self.__get_assigned_gpios_empty)
+        logging.basicConfig(level=logging.FATAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
+        self.session = session.TestSession(self)
+
         self.module = self.session.setup(Sensors)
+        self.session.add_mock_command(self.session.make_mock_command('get_raspi_gpios', data={'GPIO18': 56}))
+        self.session.add_mock_command(self.session.make_mock_command('get_assigned_gpios', data=[]))
+        self.session.start_module(self.module)
 
         #overwrite sensors by fake one
         self.module.addons_by_name = {}
@@ -158,7 +160,7 @@ class CoreSensorsTests(unittest.TestCase):
         self.assertIsNotNone(devices, 'get_module_devices returns None')
         self.assertEqual(len(devices), 1, 'get_module_devices should return single sensor')
 
-    def test_get_raspiot_gpios_with_error(self):
+    def test_get_raspi_gpios_with_error(self):
         self.session.fail_command('get_raspi_gpios')
 
         res = self.module._get_raspi_gpios()
@@ -843,12 +845,6 @@ class CoreSensorsTests(unittest.TestCase):
         return {
             'error': False,
             'data': False
-        }
-
-    def __get_raspi_gpios(self):
-        return {
-            'error': False,
-            'data': {'GPIO18': 56}
         }
 
     def __delete_gpio(self):
@@ -2326,5 +2322,6 @@ class Dht22SensorTests(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    # coverage run --omit="*/lib/python*/*","test_*" --concurrency=thread test_sensors.py; coverage report -m -i
     unittest.main()
 

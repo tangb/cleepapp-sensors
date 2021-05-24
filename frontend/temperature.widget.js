@@ -2,7 +2,10 @@
  * Temperature widget directive
  * Display temperature dashboard widget
  */
-var widgetTemperatureDirective = function(raspiotService, sensorsService) {
+angular
+.module('Cleep')
+.directive('widgetTemperatureDirective', ['cleepService', 'sensorsService',
+function(cleepService, sensorsService) {
 
     var widgetTemperatureController = ['$scope', function($scope) {
         var self = this;
@@ -13,7 +16,7 @@ var widgetTemperatureDirective = function(raspiotService, sensorsService) {
             'color': '#FF7F00',
             'label': 'Temperature (°C)'
         };
-        self.hasDatabase = raspiotService.isAppInstalled('database');
+        self.hasDatabase = cleepService.isAppInstalled('database');
     }];
 
     return {
@@ -26,8 +29,5 @@ var widgetTemperatureDirective = function(raspiotService, sensorsService) {
         controller: widgetTemperatureController,
         controllerAs: 'widgetCtl'
     };
-};
-
-var RaspIot = angular.module('RaspIot');
-RaspIot.directive('widgetTemperatureDirective', ['raspiotService', 'sensorsService', widgetTemperatureDirective]);
+}]);
 

@@ -12,8 +12,7 @@
             </div>
         </md-toolbar>
 
-        <md-dialog-content layout-padding>
-        <div class="md-dialog-content">
+        <md-dialog-content class="md-dialog-content" layout-padding>
 
             <div layout="row" layout-align="start center">
                 <div flex="50">
@@ -46,7 +45,7 @@
             <!-- HARDWARE CONFIGURATION -->
             <div ng-if="sensorsCtl.type.subtype!==sensorsCtl.SUBTYPE_ONEWIRE">
                 <!-- gpio configuration -->
-                <div gpios-pins-config readonly="sensorsCtl.updateDevice" selected-gpios="sensorsCtl.selectedGpios"></div>
+                <div gpios-pins-component readonly="sensorsCtl.updateDevice" selected-gpios="sensorsCtl.selectedGpios"></div>
             </div>
             <div ng-if="sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_ONEWIRE">
                 <!-- onewire configuration -->
@@ -57,7 +56,7 @@
                         <span>Onewire driver is not installed</span>
                     </div>
                     <div>
-                        <md-button class="md-raised md-primary" ng-disabled="sensorsCtl.installingDriver" ng-click="sensorsCtl.installDrivers()">
+                        <md-button class="md-raised md-primary" ng-disabled="sensorsCtl.installingDriver" ng-click="sensorsCtl.gotoDriversPage()">
                             Install driver
                         </md-button>
                     </div>
@@ -83,7 +82,7 @@
             <!-- SOFTWARE CONFIGURATION -->
             <div layout-gt-sm="row" ng-if="sensorsCtl.type.type===sensorsCtl.TYPE_TEMPERATURE || sensorsCtl.type.subtype===sensorsCtl.SUBTYPE_DHT22">
                 <!-- temperature sensor -->
-                <md-input-container class="md-block" flex-gt-sm>
+                <md-input-container class="md-block no-error-spacer" flex-gt-sm>
                     <label>Interval</label>
                     <md-select ng-model="sensorsCtl.interval">
                         <md-option ng-repeat="interval in sensorsCtl.intervals" ng-value="interval.value">{{interval.label}}</md-option>
@@ -109,7 +108,6 @@
                 </md-input-container>
             </div>
 
-        </div>
         </md-dialog-content>
 
         <md-dialog-actions layout="row">
