@@ -4,7 +4,7 @@
  */
 angular
 .module('Cleep')
-.directive('widgetTemperatureDirective', ['cleepService', 'sensorsService',
+.directive('temperatureWidget', ['cleepService', 'sensorsService',
 function(cleepService, sensorsService) {
 
     var widgetTemperatureController = ['$scope', function($scope) {

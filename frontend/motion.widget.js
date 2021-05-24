@@ -4,7 +4,7 @@
  */
 angular
 .module('Cleep')
-.directive('widgetMotionDirective', ['cleepService', 'sensorsService',
+.directive('motionWidget', ['cleepService', 'sensorsService',
 function(cleepService, sensorsService) {
 
     var widgetMotionController = ['$scope', function($scope) {
@@ -16,9 +16,8 @@ function(cleepService, sensorsService) {
         };
         self.hasDatabase = cleepService.isAppInstalled('database');
 
-        //set background color at startup
-        if( self.device && self.device.on )
-        {
+        // set background color at startup
+        if (self.device && self.device.on) {
             self.device.__widget.mdcolors = '{background:"default-accent-400"}';
         }
     }];

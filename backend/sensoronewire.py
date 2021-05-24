@@ -238,8 +238,8 @@ class SensorOnewire(Sensor):
                 "get_reserved_gpios", "gpios", {"usage": self.USAGE_ONEWIRE}
             )
             self.logger.debug("Get_reserved_gpios response: %s" % resp)
-            if not resp["error"] and resp["data"] and len(resp["data"]) > 0:
-                sensor = resp["data"][0]
+            if not resp.error and resp.data and len(resp.data) > 0:
+                sensor = resp.data[0]
                 resp = self.sensors.send_command(
                     "delete_gpio", "gpios", {"uuid": sensor["uuid"]}
                 )

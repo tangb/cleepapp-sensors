@@ -265,10 +265,10 @@ class SensorDht22(Sensor):
         self.logger.debug('Read DHT22 sensor values from command "%s"' % cmd)
         resp = console.command(cmd, timeout=11)
         self.logger.debug("Read DHT command response: %s" % resp)
-        if resp["error"] or resp["killed"]:
+        if resp.error or resp.killed:
             self.logger.error("DHT22 command failed: %s" % resp)
 
-        return json.loads(resp["stdout"][0])
+        return json.loads(resp.stdout[0])
 
     def _read_dht22(self, sensor):
         """

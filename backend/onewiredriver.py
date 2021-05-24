@@ -20,6 +20,8 @@ class OnewireDriver(Driver):
         Constructor
         """
         Driver.__init__(self, Driver.DRIVER_ELECTRONIC, OnewireDriver.DRIVER_NAME)
+        self.configtxt = None
+        self.etcmodules = None
 
     def _on_registered(self):
         """

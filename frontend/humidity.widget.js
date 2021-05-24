@@ -4,7 +4,7 @@
  */
 angular
 .module('Cleep')
-.directive('widgetHumidityDirective', ['cleepService', 'sensorsService',
+.directive('humidityWidget', ['cleepService', 'sensorsService',
 function(cleepService, sensorsService) {
 
     var widgetHumidityController = ['$scope', function($scope) {

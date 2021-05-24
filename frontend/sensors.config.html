@@ -6,11 +6,7 @@
         <!-- no item -->
         <md-list-item ng-if="(sensorsCtl.devices | filterDeviceByModule:'sensors').length===0">
             <p>
-                No sensor configured, click on
-                <md-button class="md-fab md-mini md-accent default-cursor" aria-label="Add sensor">
-                    <md-icon md-svg-icon="plus"></md-icon>
-                </md-button>
-                button below.
+                No sensor configured, click on + button below.
             </p>
         </md-list-item>
 

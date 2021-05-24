@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-
 class SensorsUtils:
     """
     Sensors utils
@@ -26,23 +25,23 @@ class SensorsUtils:
                 (float: celsius, float: fahrenheit)
 
         """
-        tempC = None
-        tempF = None
+        temp_c = None
+        temp_f = None
         if offset is not None and offset != 0:
             if offset_unit == SensorsUtils.TEMP_CELSIUS:
                 # apply offset on celsius value
-                tempC = celsius + offset
-                tempF = (tempC * 9 / 5) + 32
+                temp_c = celsius + offset
+                temp_f = (temp_c * 9 / 5) + 32
             else:
                 # apply offset on computed fahrenheit value
-                tempF = (celsius * 9 / 5) + 32 + offset
-                tempC = (tempF - 32) * 5 / 9
+                temp_f = (celsius * 9 / 5) + 32 + offset
+                temp_c = (temp_f - 32) * 5 / 9
         else:
             # no offset
-            tempC = celsius
-            tempF = (celsius * 9 / 5) + 32
+            temp_c = celsius
+            temp_f = (celsius * 9 / 5) + 32
 
-        return (round(tempC, 2), round(tempF, 2))
+        return (round(temp_c, 2), round(temp_f, 2))
 
     @staticmethod
     def convert_temperatures_from_fahrenheit(fahrenheit, offset, offset_unit):
@@ -65,20 +64,21 @@ class SensorsUtils:
                 (float: celsius, float: fahrenheit)
 
         """
-        tempC = None
-        tempF = None
+        temp_c = None
+        temp_f = None
         if offset is not None and offset != 0:
             if offset_unit == SensorsUtils.TEMP_CELSIUS:
                 # apply offset on celsius value
-                tempC = (fahrenheit - 32) * 5 / 9 + offset
-                tempF = (tempC * 9 / 5) + 32
+                temp_c = (fahrenheit - 32) * 5 / 9 + offset
+                temp_f = (temp_c * 9 / 5) + 32
             else:
                 # apply offset on computed fahrenheit value
-                tempF = fahrenheit + offset
-                tempC = (tempF - 32) * 5 / 9
+                temp_f = fahrenheit + offset
+                temp_c = (temp_f - 32) * 5 / 9
         else:
             # no offset
-            tempF = fahrenheit
-            tempC = (tempF - 32) * 5 / 9
+            temp_f = fahrenheit
+            temp_c = (temp_f - 32) * 5 / 9
 
-        return (round(tempC, 2), round(tempF, 2))
+        return (round(temp_c, 2), round(temp_f, 2))
+
