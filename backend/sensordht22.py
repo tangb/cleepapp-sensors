@@ -3,7 +3,7 @@
 
 import json
 import time
-from cleep.exception import MissingParameter, InvalidParameter
+from cleep.exception import InvalidParameter
 from cleep.libs.internals.console import Console
 from cleep.libs.internals.task import Task
 from .sensor import Sensor
@@ -61,6 +61,13 @@ class SensorDht22(Sensor):
         Return sensor data to add.
         Can perform specific stuff
 
+        Args:
+            name (string): sensor name
+            gpio (string): gpio name
+            interval (int): interval value
+            offset (int): offset value
+            offset_unit (string): offset unit
+
         Returns:
             dict: sensor data to add::
 
@@ -73,30 +80,43 @@ class SensorDht22(Sensor):
         # get assigned gpios
         assigned_gpios = self._get_assigned_gpios()
 
-        # check values
-        if name is None or len(name) == 0:
-            raise MissingParameter('Parameter "name" is missing')
-        if self._search_device("name", name) is not None:
-            raise InvalidParameter('Name "%s" is already used' % name)
-        if interval is None:
-            raise MissingParameter('Parameter "interval" is missing')
-        if interval < 60:
-            raise InvalidParameter("Interval must be greater than 60")
-        if offset is None:
-            raise MissingParameter('Parameter "offset" is missing')
-        if offset_unit is None or len(offset_unit) == 0:
-            raise MissingParameter('Parameter "offset_unit" is missing')
-        if offset_unit not in (
-            SensorsUtils.TEMP_CELSIUS,
-            SensorsUtils.TEMP_FAHRENHEIT,
-        ):
-            raise InvalidParameter(
-                'Offset_unit must be equal to "celsius" or "fahrenheit"'
-            )
-        if gpio is None or len(gpio) == 0:
-            raise MissingParameter('Parameter "gpio" is missing')
-        if gpio in assigned_gpios:
-            raise InvalidParameter('Gpio "%s" is already used' % gpio)
+        # check parameters
+        self._check_parameters([
+            {
+                "name": "name",
+                "value": name,
+                "type": str,
+                "validator": lambda val: self._search_device("name", val) is None,
+                "message": 'Name "%s" is already used' % name,
+            },
+            {
+                "name": "gpio",
+                "value": gpio,
+                "type": str,
+                "validator": lambda val: gpio not in assigned_gpios,
+                "message": 'Gpio "%s" is already used' % gpio,
+            },
+            {
+                "name": "interval",
+                "value": interval,
+                "type": int,
+                "validator": lambda val: val >= 60,
+                "message": "Interval must be greater or equal than 60",
+            },
+            {
+                "name": "offset",
+                "value": offset,
+                "type": int,
+            },
+            {
+                "name": "offset_unit",
+                "value": offset_unit,
+                "type": str,
+                "validator": lambda val: val in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
+                "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
+            },
+        ])
+        # TODO add new validator in cleep v0.0.27
         if gpio not in self.raspi_gpios:
             raise InvalidParameter(
                 'Gpio "%s" does not exist for this raspberry pi' % gpio
@@ -148,6 +168,13 @@ class SensorDht22(Sensor):
         Returns sensor data to update
         Can perform specific stuff
 
+        Args:
+            sensor (dict): sensor data
+            name (string): sensor name
+            interval (int): interval value
+            offset (int): offset value
+            offset_unit (string): offset unit
+
         Returns:
             dict: sensor data to update::
 
@@ -157,28 +184,40 @@ class SensorDht22(Sensor):
                 }
 
         """
-        # check params
-        if sensor is None:
-            raise MissingParameter('Parameter "sensor" is missing')
-        if name is None or len(name) == 0:
-            raise MissingParameter('Parameter "name" is missing')
-        if sensor["name"] != name and self._search_device("name", name) is not None:
-            raise InvalidParameter('Name "%s" is already used' % name)
-        if interval is None:
-            raise MissingParameter('Parameter "interval" is missing')
-        if interval < 60:
-            raise InvalidParameter("Interval must be greater or equal than 60")
-        if offset is None:
-            raise MissingParameter('Parameter "offset" is missing')
-        if offset_unit is None or len(offset_unit) == 0:
-            raise MissingParameter('Parameter "offset_unit" is missing')
-        if offset_unit not in (
-            SensorsUtils.TEMP_CELSIUS,
-            SensorsUtils.TEMP_FAHRENHEIT,
-        ):
-            raise InvalidParameter(
-                'Offset_unit value must be either "celsius" or "fahrenheit"'
-            )
+        # check parameters
+        self._check_parameters([
+            {
+                "name": "sensor",
+                "value": sensor,
+                "type": dict,
+            },
+            {
+                "name": "name",
+                "value": name,
+                "type": str,
+                "validator": lambda val: sensor["name"] == val or self._search_device("name", val) is None,
+                "message": 'Name "%s" is already used' % name,
+            },
+            {
+                "name": "interval",
+                "value": interval,
+                "type": int,
+                "validator": lambda val: val >= 60,
+                "message": "Interval must be greater or equal than 60",
+            },
+            {
+                "name": "offset",
+                "value": offset,
+                "type": int,
+            },
+            {
+                "name": "offset_unit",
+                "value": offset_unit,
+                "type": str,
+                "validator": lambda val: val in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
+                "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
+            },
+        ])
 
         # search all sensors with same name
         old_name = sensor["name"]
@@ -232,8 +271,9 @@ class SensorDht22(Sensor):
 
         """
         # check params
-        if sensor is None:
-            raise MissingParameter('Parameter "sensor" is missing')
+        self._check_parameters([
+            {'name': 'sensor', 'value': sensor, 'type': dict}
+        ])
 
         # search all sensors with same name
         (temperature_device, humidity_device) = self._get_dht22_devices(sensor["name"])
@@ -265,10 +305,10 @@ class SensorDht22(Sensor):
         self.logger.debug('Read DHT22 sensor values from command "%s"' % cmd)
         resp = console.command(cmd, timeout=11)
         self.logger.debug("Read DHT command response: %s" % resp)
-        if resp.error or resp.killed:
+        if resp['error'] or resp['killed']:
             self.logger.error("DHT22 command failed: %s" % resp)
 
-        return json.loads(resp.stdout[0])
+        return json.loads(resp['stdout'][0])
 
     def _read_dht22(self, sensor):
         """

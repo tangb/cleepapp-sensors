@@ -4,7 +4,7 @@
 import os
 import glob
 import time
-from cleep.exception import MissingParameter, InvalidParameter, CommandError
+from cleep.exception import CommandError
 from cleep.libs.internals.task import Task
 from .sensor import Sensor
 from .sensorsutils import SensorsUtils
@@ -47,48 +47,72 @@ class SensorOnewire(Sensor):
         Return sensor data to add.
         Can perform specific stuff
 
+        Args:
+            name (str): sensor name
+            device (str): onewire device
+            path (str): onewire path
+            interval (int): interval
+            offset (int): offset
+            offset_unit (str): offset unit
+
         Returns:
             dict: sensor data to add::
 
-                {
-                    gpios (list): list of gpios data to add
-                    sensors (list): list sensors data to add
-                }
+            {
+                gpios (list): list of gpios data to add
+                sensors (list): list sensors data to add
+            }
 
         """
-        # check values
-        if name is None or len(name) == 0:
-            raise MissingParameter('Parameter "name" is missing')
-        if self._search_device("name", name) is not None:
-            raise InvalidParameter('Name "%s" is already used' % name)
-        if device is None or len(device) == 0:
-            raise MissingParameter('Parameter "device" is missing')
-        if path is None or len(path) == 0:
-            raise MissingParameter('Parameter "path" is missing')
-        if interval is None:
-            raise MissingParameter('Parameter "interval" is missing')
-        if interval < 60:
-            raise InvalidParameter("Interval must be greater or equal than 60")
-        if offset is None:
-            raise MissingParameter('Parameter "offset" is missing')
-        if offset_unit is None or len(offset_unit) == 0:
-            raise MissingParameter('Parameter "offset_unit" is missing')
-        if not isinstance(offset_unit, str) or offset_unit not in (
-            SensorsUtils.TEMP_CELSIUS,
-            SensorsUtils.TEMP_FAHRENHEIT,
-        ):
-            raise InvalidParameter(
-                'Offset_unit must be equal to "celsius" or "fahrenheit"'
-            )
+        # check parameters
+        self._check_parameters([
+            {
+                "name": "name",
+                "value": name,
+                "type": str,
+                "validator": lambda val: self._search_device("name", val) is None,
+                "message": 'Name "%s" is already used' % name,
+            },
+            {
+                "name": "device",
+                "value": device,
+                "type": str,
+            },
+            {
+                "name": "path",
+                "value": path,
+                "type": str,
+            },
+            {
+                "name": "interval",
+                "value": interval,
+                "type": int,
+                "validator": lambda val: val >= 60,
+                "message": "Interval must be greater or equal than 60",
+            },
+            {
+                "name": "offset",
+                "value": offset,
+                "type": int
+            },
+            {
+                "name": "offset_unit",
+                "value": offset_unit,
+                "type": str,
+                "validator": lambda val: val in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
+                "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
+            },
+        ])
 
         # get 1wire gpio
-        gpio_device = self.sensors.send_command(
+        gpio_resp = self.sensors.send_command(
             "get_reserved_gpio", "gpios", {"usage": self.USAGE_ONEWIRE}
         )
-        self.logger.debug("gpio_device=%s" % gpio_device)
+        self.logger.debug("Get reserved gpio resp: %s" % gpio_resp)
+        gpio_device = gpio_resp.data
 
         # prepare sensor
-        sensor = {
+        sensor_data = {
             "name": name,
             "gpios": [
                 {
@@ -110,14 +134,14 @@ class SensorOnewire(Sensor):
         }
 
         # read temperature
-        (temp_c, temp_f) = self._read_onewire_temperature(sensor)
-        sensor["celsius"] = temp_c
-        sensor["fahrenheit"] = temp_f
+        (temp_c, temp_f) = self._read_onewire_temperature(sensor_data)
+        sensor_data["celsius"] = temp_c
+        sensor_data["fahrenheit"] = temp_f
 
         return {
             "gpios": [],
             "sensors": [
-                sensor,
+                sensor_data,
             ],
         }
 
@@ -125,6 +149,13 @@ class SensorOnewire(Sensor):
         """
         Returns sensor data to update
         Can perform specific stuff
+
+        Args:
+            sensor (dict): sensor data
+            name (string): new sensor name
+            interval (int): new interval
+            offset (int): new offset
+            offset_unit (string): new offset unit
 
         Returns:
             dict: sensor data to update::
@@ -135,31 +166,41 @@ class SensorOnewire(Sensor):
                 }
 
         """
-        if sensor is None:
-            raise InvalidParameter("Sensor wasn't specified")
-        if (
-            "uuid" not in sensor or self._search_device("uuid", sensor["uuid"]) is None
-        ):
-            raise InvalidParameter('Sensor "%s" does not exist' % sensor["uuid"])
-        if name is None or len(name) == 0:
-            raise MissingParameter('Parameter "name" is missing')
-        if name != sensor["name"] and self._search_device("name", name) is not None:
-            raise InvalidParameter('Name "%s" is already used' % name)
-        if interval is None:
-            raise MissingParameter('Parameter "interval" is missing')
-        if interval < 60:
-            raise InvalidParameter("Interval must be greater or equal than 60")
-        if offset is None:
-            raise MissingParameter('Parameter "offset" is missing')
-        if offset_unit is None or len(offset_unit) == 0:
-            raise MissingParameter('Parameter "offset_unit" is missing')
-        if offset_unit not in (
-            SensorsUtils.TEMP_CELSIUS,
-            SensorsUtils.TEMP_FAHRENHEIT,
-        ):
-            raise InvalidParameter(
-                'Offset_unit value must be either "celsius" or "fahrenheit"'
-            )
+        self._check_parameters([
+            {
+                "name": "sensor",
+                "value": sensor,
+                "type": dict,
+                "validator": lambda val: "uuid" in val and self._search_device("uuid", val["uuid"]) is not None,
+                "message": 'Sensor does not exist',
+            },
+            {
+                "name": "name",
+                "value": name,
+                "type": str,
+                "validator": lambda val: val == sensor["name"] or self._search_device("name", val) is None,
+                "message": 'Name "%s" is already used' % name,
+            },
+            {
+                "name": "interval",
+                "value": interval,
+                "type": int,
+                "validator": lambda val: val >= 60,
+                "message": "Interval must be greater or equal than 60",
+            },
+            {
+                "name": "offset",
+                "value": offset,
+                "type": int
+            },
+            {
+                "name": "offset_unit",
+                "value": offset_unit,
+                "type": str,
+                "validator": lambda val: val in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
+                "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
+            },
+        ])
 
         # update sensor
         sensor["name"] = name
@@ -209,7 +250,7 @@ class SensorOnewire(Sensor):
         Event received specific process for onewire
 
         Args:
-            event (MessageRequest): gpio event
+            event (MessageRequest): event
             sensor (dict): sensor data
         """
         if (
@@ -333,3 +374,4 @@ class SensorOnewire(Sensor):
             sensor (dict): sensor data
         """
         return Task(float(sensor["interval"]), self._task, self.logger, [sensor])
+

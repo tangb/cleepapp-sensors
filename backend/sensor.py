@@ -29,6 +29,9 @@ class Sensor:
     def _register_driver(self, driver):
         """
         Register driver
+
+        Args:
+            driver (Driver): driver instance
         """
         self.sensors._register_driver(driver)
         self.drivers[driver.name] = driver
@@ -116,7 +119,7 @@ class Sensor:
         """
         return self.sensors._get_assigned_gpios()
 
-    def update(self, sensor):
+    def update(self, sensor): # pragma: no cover
         """
         Returns sensor data to update
         Can perform specific stuff
@@ -134,7 +137,7 @@ class Sensor:
             'Function "update" must be implemented in "%s"' % self.__class__.__name__
         )
 
-    def add(self):
+    def add(self): # pragma: no cover
         """
         Return sensor data to add.
         Can perform specific stuff
@@ -155,7 +158,9 @@ class Sensor:
     def delete(self, sensor):
         """
         Returns sensor data to delete
-        Can perform specific stuff
+
+        Note:
+            Can be overwritten to fit to custom sensor data
 
         Returns:
             dict: sensor data to delete::
@@ -189,7 +194,7 @@ class Sensor:
 
         return self.__task
 
-    def _get_task(self, sensors):
+    def _get_task(self, sensors): # pragma: no cover
         """
         Prepare specific sensor task
 
@@ -203,12 +208,12 @@ class Sensor:
             'Function "get_task" must be implemented in "%s"' % self.__class__.__name__
         )
 
-    def process_event(self, event, sensor):
+    def process_event(self, event, sensor): # pragma: no cover
         """
-        Process received event
+        Process received event. Can be a gpio or driver event
 
         Args:
-            event (MessageRequest): gpio event
+            event (MessageRequest): event
             sensor (dict): sensor data
         """
         return

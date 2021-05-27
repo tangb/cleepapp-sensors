@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import time
-from cleep.exception import MissingParameter, InvalidParameter
+from cleep.exception import InvalidParameter
 from .sensor import Sensor
 
 class SensorMotionGeneric(Sensor):
@@ -32,6 +32,11 @@ class SensorMotionGeneric(Sensor):
         Return sensor data to add.
         Can perform specific stuff
 
+        Args:
+            name (string): sensor name
+            gpio (string): used gpio
+            inverted (bool): True if gpio is inverted
+
         Returns:
             dict: sensor data to add::
 
@@ -45,23 +50,31 @@ class SensorMotionGeneric(Sensor):
         assigned_gpios = self._get_assigned_gpios()
 
         # check values
-        if name is None or len(name) == 0:
-            raise MissingParameter('Parameter "name" is missing')
-        if self._search_device("name", name) is not None:
-            raise InvalidParameter('Name "%s" is already used' % name)
-        if not gpio:
-            raise MissingParameter('Parameter "gpio" is missing')
-        if inverted is None:
-            raise MissingParameter('Parameter "inverted" is missing')
-        if gpio in assigned_gpios:
-            raise InvalidParameter('Gpio "%s" is already used' % gpio)
+        self._check_parameters([
+            {
+                'name': 'name',
+                'value': name,
+                'type': str,
+                'validator': lambda val: self._search_device("name", name) is None,
+                'message': 'Name "%s" is already used' % name,
+            },
+            {
+                'name': 'gpio',
+                'value': gpio,
+                'type': str,
+                'validator': lambda val: gpio not in assigned_gpios,
+                'message': 'Gpio "%s" is already used' % gpio,
+            },
+            {'name': 'inverted', 'value': inverted, 'type': bool},
+        ])
+        # TODO add new validator in cleep v0.0.27
         if gpio not in self.raspi_gpios:
             raise InvalidParameter(
                 'Gpio "%s" does not exist for this raspberry pi' % gpio
             )
 
         # configure gpio
-        gpio = {
+        gpio_data = {
             "name": name + "_motion",
             "gpio": gpio,
             "mode": "input",
@@ -69,7 +82,7 @@ class SensorMotionGeneric(Sensor):
             "inverted": inverted,
         }
 
-        sensor = {
+        sensor_data = {
             "name": name,
             "gpios": [],
             "type": self.TYPE_MOTION,
@@ -83,15 +96,15 @@ class SensorMotionGeneric(Sensor):
         # read current gpio value
         resp = self.send_command("is_gpio_on", "gpios", {"gpio": gpio})
         if not resp.error:
-            sensor["on"] = resp.data
-        sensor["lastupdate"] = int(time.time())
+            sensor_data["on"] = resp.data
+        sensor_data["lastupdate"] = int(time.time())
 
         return {
             "gpios": [
-                gpio,
+                gpio_data,
             ],
             "sensors": [
-                sensor,
+                sensor_data,
             ],
         }
 
@@ -99,6 +112,11 @@ class SensorMotionGeneric(Sensor):
         """
         Returns sensor data to update
         Can perform specific stuff
+
+        Args:
+            sensor (dict): sensor data
+            name (string): sensor name
+            inverted (bool): True if gpio is inverted
 
         Returns:
             dict: sensor data to update::
@@ -109,18 +127,28 @@ class SensorMotionGeneric(Sensor):
                 }
 
         """
-        if sensor is None:
-            raise MissingParameter('Parameter "sensor" is missing')
-        if name is None or len(name) == 0:
-            raise MissingParameter('Parameter "name" is missing')
-        if name != sensor["name"] and self._search_device("name", name) is not None:
-            raise InvalidParameter('Name "%s" is already used' % name)
-        if inverted is None:
-            raise MissingParameter('Parameter "inverted" is missing')
-        if self._search_device("uuid", sensor["uuid"]) is None:
-            raise InvalidParameter('Sensor "%s" does not exist' % sensor["uuid"])
+        # check values
+        if sensor:
+            self.logger.debug('=====> %s' % self._search_device("uuid", sensor["uuid"]))
+        self._check_parameters([
+            {
+                'name': 'sensor',
+                'value': sensor,
+                'type': dict,
+                'validator': lambda val: self._search_device("uuid", val["uuid"]) is not None,
+                'message': 'Sensor does not exist',
+            },
+            {
+                'name': 'name',
+                'value': name,
+                'type': str,
+                'validator': lambda val: val == sensor['name'] or self._search_device("name", name) is None,
+                'message': 'Name "%s" is already used' % name,
+            },
+            {'name': 'inverted', 'value': inverted, 'type': bool},
+        ])
 
-        gpio = {
+        gpio_data = {
             "uuid": sensor["gpios"][0]["uuid"],
             "name": name + "_motion",
             "keep": False,
@@ -133,7 +161,7 @@ class SensorMotionGeneric(Sensor):
 
         return {
             "gpios": [
-                gpio,
+                gpio_data,
             ],
             "sensors": [
                 sensor,
@@ -145,7 +173,7 @@ class SensorMotionGeneric(Sensor):
         Process received event
 
         Args:
-            event (MessageRequest): gpio event
+            event (MessageRequest): event
             sensor (dict): sensor data
         """
         # get current time

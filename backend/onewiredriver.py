@@ -41,7 +41,7 @@ class OnewireDriver(Driver):
             not self.etcmodules.enable_module(self.MODULE_ONEWIREGPIO)
             or not self.configtxt.enable_onewire()
         ):
-            raise Exception("Unable to install onewire system module")
+            raise Exception("Unable to install onewire driver")
 
         return True
 
@@ -56,7 +56,7 @@ class OnewireDriver(Driver):
             not self.etcmodules.disable_module(self.MODULE_ONEWIREGPIO)
             or not self.configtxt.disable_onewire()
         ):
-            raise Exception("Unable to uninstall onewire system module")
+            raise Exception("Unable to uninstall onewire driver")
 
         return True
 

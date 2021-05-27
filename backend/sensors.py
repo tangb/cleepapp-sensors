@@ -59,10 +59,6 @@ class Sensors(CleepModule):
         self.addons_by_type = {}
         self.sensors_types = {}
 
-    def _configure(self):
-        """
-        Configure application
-        """
         # addons
         self._register_addon(SensorMotionGeneric(self))
         self._register_addon(SensorOnewire(self))
@@ -109,6 +105,7 @@ class Sensors(CleepModule):
             "process_event",
             "has_drivers",
             "send_command",
+            "cleep_filesystem",
         ]
         methods = [
             method_name
@@ -121,13 +118,19 @@ class Sensors(CleepModule):
             'Addon "%s" public methods: %s' % (addon.__class__.__name__, methods)
         )
         for method_name in methods:
-            if hasattr(self, method_name):
+            if hasattr(self, method_name): # pragma: no cover
                 self.logger.error(
                     'Public method "%s" from addon "%s" is already referenced. Please rename it'
                     % (method_name, addon.__class__.__name__)
                 )
                 continue
+            self.logger.debug('Register method "%s" from addon "%s"' % (method_name, addon.__class__.__name__))
             setattr(self, method_name, getattr(addon, method_name))
+
+        # inject in addon some sensors methods
+        sensors_methods = ['_check_parameters']
+        for method_name in sensors_methods:
+            setattr(addon, method_name, getattr(self, method_name))
 
     def _on_start(self):
         """
@@ -315,23 +318,23 @@ class Sensors(CleepModule):
                 }
             )
 
-    def _fix_gpio(self, gpio):
+    def _fix_gpio_device(self, gpio_device):
         """
         Replace uuid with device_uuid in gpio content
 
         Args:
-            gpio (dict): gpio data
+            gpio_device (dict): gpio device
 
         Returns:
             dict: input gpio with valid data to request gpios app
         """
-        self.logger.debug("Gpio to fix: %s" % gpio)
-        fixed_gpio = copy.deepcopy(gpio)
-        if "uuid" in gpio:
-            fixed_gpio["device_uuid"] = gpio["uuid"]
-            del fixed_gpio["uuid"]
+        self.logger.debug("Gpio to fix: %s" % gpio_device)
+        fixed_gpio_device = copy.deepcopy(gpio_device)
+        if "uuid" in gpio_device:
+            fixed_gpio_device["device_uuid"] = gpio_device["uuid"]
+            del fixed_gpio_device["uuid"]
 
-        return fixed_gpio
+        return fixed_gpio_device
 
     def add_sensor(self, sensor_type, sensor_subtype, data):
         """
@@ -352,18 +355,16 @@ class Sensors(CleepModule):
         sensor_devices = []
         gpio_devices = []
         try:
-            self.logger.debug("Addon add with data: %s" % data)
+            self.logger.debug('Addon "%s" add with data: %s' % (addon.__class__.__name__, data))
             (gpios, sensors) = addon.add(**data).values()
-            if not isinstance(gpios, list):
-                raise Exception("Invalid gpios type. Must be a list")
-            if not isinstance(sensors, list):
-                raise Exception("Invalid sensors type. Must be a list")
+            if not isinstance(gpios, list) or not isinstance(sensors, list): # pragma: no cover
+                raise Exception("Invalid gpios or sensors type. Must be a list")
 
             # add gpios
             self.logger.debug("Gpios: %s" % gpios)
             for gpio in gpios:
                 self.logger.debug("add_gpio with: %s" % gpio)
-                resp_gpio = self.send_command("add_gpio", "gpios", self._fix_gpio(gpio))
+                resp_gpio = self.send_command("add_gpio", "gpios", self._fix_gpio_device(gpio))
                 if resp_gpio.error:
                     raise CommandError(resp_gpio.message)
                 gpio_devices.append(resp_gpio.data)
@@ -375,10 +376,10 @@ class Sensors(CleepModule):
             # add sensors
             for sensor in sensors:
                 self.logger.debug("add_device with: %s" % sensor)
-                sensor_device = self._add_device(sensor)
-                if sensor_device is None:
+                added_sensor = self._add_device(sensor)
+                if added_sensor is None:
                     raise CommandError("Unable to save new sensor")
-                sensor_devices.append(sensor_device)
+                sensor_devices.append(added_sensor)
 
             # start task
             self._start_sensor_task(addon.get_task(sensor_devices[0]), sensor_devices)
@@ -410,9 +411,9 @@ class Sensors(CleepModule):
         Returns:
             bool: True if deletion succeed
         """
-        sensor = self._get_device(sensor_uuid)
         if not sensor_uuid:
             raise MissingParameter("Uuid parameter is missing")
+        sensor = self._get_device(sensor_uuid)
         if sensor is None:
             raise InvalidParameter('Sensor with uuid "%s" doesn\'t exist' % sensor_uuid)
 
@@ -428,10 +429,8 @@ class Sensors(CleepModule):
             self._stop_sensor_task(sensor)
 
             (gpios, sensors) = addon.delete(sensor).values()
-            if not isinstance(gpios, list):
-                raise Exception("Invalid gpios type. Must be a list")
-            if not isinstance(sensors, list):
-                raise Exception("Invalid sensors type. Must be a list")
+            if not isinstance(gpios, list) or not isinstance(sensors, list): # pragma: no cover
+                raise Exception("Invalid gpios or sensors type. Must be a list")
 
             # unconfigure gpios
             self.logger.debug("Gpios=%s" % gpios)
@@ -495,10 +494,9 @@ class Sensors(CleepModule):
         Returns:
             list: list of updated sensors
         """
-        sensor = self._get_device(sensor_uuid)
-        self.logger.debug("update_sensor found device: %s" % sensor)
         if not sensor_uuid:
             raise MissingParameter("Uuid parameter is missing")
+        sensor = self._get_device(sensor_uuid)
         if sensor is None:
             raise InvalidParameter('Sensor with uuid "%s" doesn\'t exist' % sensor_uuid)
 
@@ -513,20 +511,14 @@ class Sensors(CleepModule):
         gpio_devices = []
         try:
             # prepare data mixing all params from all sensors
-            # sensors = self._search_device('name', sensor['name'])
-            # for sensor in sensors:
-            #     data.update(sensor)
             data["sensor"] = sensor
             (gpios, sensors) = addon.update(**data).values()
-            if not isinstance(gpios, list):
-                raise Exception("Invalid gpios type. Must be a list")
-            if not isinstance(sensors, list):
-                raise Exception("Invalid sensors type. Must be a list")
+            if not isinstance(gpios, list) or not isinstance(sensors, list): # pragma: no cover
+                raise Exception("Invalid gpios or sensors type. Must be a list")
 
             # update gpios
             for gpio in gpios:
-                self.logger.fatal('gpio: %s' % gpio)
-                resp_gpio = self.send_command("update_gpio", "gpios", self._fix_gpio(gpio))
+                resp_gpio = self.send_command("update_gpio", "gpios", self._fix_gpio_device(gpio))
                 if resp_gpio.error:
                     raise CommandError(resp_gpio.message)
                 gpio_devices.append(resp_gpio.data)
@@ -534,7 +526,7 @@ class Sensors(CleepModule):
             # update sensors
             for sensor in sensors:
                 if not self._update_device(sensor["uuid"], sensor):
-                    raise CommandError("Unable to save sensor update")
+                    raise CommandError("Unable to update sensor")
                 sensor_devices.append(sensor)
 
             # restart sensor task
@@ -584,8 +576,8 @@ class Sensors(CleepModule):
         """
         # search for task
         task = None
-        for device_uuid in self._tasks_by_device_uuid.keys():
-            if self._tasks_by_device_uuid[device_uuid] == sensor["uuid"]:
+        for device_uuid in self._tasks_by_device_uuid:
+            if device_uuid == sensor["uuid"]:
                 task = self._tasks_by_device_uuid[device_uuid]
                 break
         if task is None:
