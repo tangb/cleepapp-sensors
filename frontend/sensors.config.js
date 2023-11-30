@@ -1,11 +1,7 @@
-/**
- * Sensors config directive
- * Handle sensors configuration
- */
 angular
 .module('Cleep')
-.directive('sensorsConfigComponent', ['$rootScope', 'toastService', 'cleepService', 'sensorsService', 'confirmService', '$mdDialog', '$location',
-function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $location) {
+.directive('sensorsConfigComponent', ['$rootScope', 'toastService', 'cleepService', 'sensorsService', 'confirmService', '$mdDialog', '$filter',
+function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $filter) {
 
     var sensorsController = [function() {
         var self = this;
@@ -17,35 +13,33 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
         self.onewires = [];
         self.onewire = '';
         self.intervals = [
-            {label:'5 minutes', value:300},
-            {label:'15 minutes', value:900},
-            {label:'30 minutes', value:1800},
-            {label:'1 hour', value:3600}
+            { label:'5 minutes', value: 300 },
+            { label:'15 minutes', value: 900 },
+            { label:'30 minutes', value: 1800 },
+            { label:'1 hour', value: 3600 },
         ];
         self.interval = self.intervals[1].value;
         self.offset = 0;
         self.offsetUnits = [
-            {label:'Celsius', value:'celsius'},
-            {label:'Fahrenheit', value:'fahrenheit'}
+            { label:'Celsius', value: 'celsius' },
+            { label:'Fahrenheit', value: 'fahrenheit' },
         ];
         self.offsetUnit = self.offsetUnits[0].value;
-        self.TYPE_MULTI = 'multi'
-        self.TYPE_MOTION = 'motion';
-        self.TYPE_TEMPERATURE = 'temperature';
-        self.TYPE_HUMIDITY = 'humidity';
-        self.SUBTYPE_GENERIC = 'generic';
-        self.SUBTYPE_ONEWIRE = 'onewire';
-        self.SUBTYPE_DHT22 = 'dht22';
-        self.types = [];
-        //    {label:'Motion', value:{type:self.TYPE_MOTION, subtype:self.SUBTYPE_GENERIC}},
-        //    {label:'Temperature (onewire)', value:{type:self.TYPE_TEMPERATURE, subtype:self.SUBTYPE_ONEWIRE}},
-        //    {label:'Temperature+humidity sensor (DHT22)', value:{type:self.TYPE_MULTI, subtype:self.SUBTYPE_DHT22}}
-        //];
-        self.type = null; //self.types[0].value;
+        self.TYPES = {
+            MULTI: 'multi',
+            MOTION: 'motion',
+            TEMPERATURE: 'temperature',
+            HUMIDITY: 'humidity',
+        };
+        self.SUBTYPES = {
+            GENERIC: 'generic',
+            ONEWIRE: 'onewire',
+            DHT22: 'dht22',
+        };
+        self.type = null;
+        self.sensors = [];
+        self.updateDevice = false;
 
-        /**
-         * Search sensor by name
-         */
         self._searchSensorsByName = function(name) {
             founds = [];
 
@@ -58,15 +52,12 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
             return founds;
         };
 
-        /**
-         * Return sensor type according to types member
-         */
         self._getSensorType = function(sensor) {
             for( var type of self.types ) {
                 if (type.value.type===sensor.type && type.value.subtype===sensor.subtype) {
                     // strict type found
                     return type.value;
-                } else if (type.value.subtype===self.SUBTYPE_DHT22) {
+                } else if (type.value.subtype===self.SUBTYPES.DHT22) {
                     // multi sensor DHT22
                     return type.value;
                 }
@@ -77,9 +68,6 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
             return self.types[0].value;
         };
 
-        /** 
-         * Reset editor's values
-         */
         self._resetEditorValues = function() {
             self.name = ''; 
             self.inverted = false;
@@ -92,17 +80,6 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
             self.onewire = '';
         };
 
-        /**
-         * Goto drivers page
-         */
-        self.gotoDriversPage = function() {
-            self.closeDialog(true);
-            $location.url('/module/system?tab=drivers')
-        };
-
-        /** 
-         * Close dialog
-         */
         self.closeDialog = function(force=false) {
             if (force === true) {
                 $mdDialog.cancel();
@@ -113,51 +90,50 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
             }   
         };
 
-        /** 
-         * Cancel dialog
-         */
         self.cancelDialog = function() {
             $mdDialog.cancel();
         };  
 
-        /**
-         * Open dialog (internal use)
-         */
-        self._openDialog = function(update) {
+        self._openDialog = function(updateDevice) {
+            self.updateDevice = updateDevice;
             return $mdDialog.show({
-                controller: function() { return self; },
-                controllerAs: 'sensorsCtl',
-                templateUrl: update ? 'update-sensor.dialog.html' : 'add-sensor.dialog.html',
+                controller: function() { return self },
+                controllerAs: '$ctrl',
+                templateUrl: 'sensor.dialog.html',
                 parent: angular.element(document.body),
                 clickOutsideToClose: false,
-                fullscreen: true
+                fullscreen: true,
             });
         };
 
-        /**
-         * Event when sensor type changed.
-         * Used to define gpio component configuration (pin name)
-         */
         self.onSensorTypeChanged = function() {
-            if (self.type.type === self.TYPE_MOTION && self.type.subtype === self.SUBTYPE_GENERIC ||
-                self.type.subtype === self.SUBTYPE_DHT22) {
-                // single pin
-                self.selectedGpios = [{'gpio':null, 'label':'gpio'}];
+            // based on type
+            switch (self.type.type) {
+                case self.TYPES.MOTION:
+                case self.SUBTYPES.GENERIC:
+                    // single pin
+                    self.selectedGpios = [{'gpio':null, 'label':'gpio'}];
+                    return;
+            }
+
+            // based on subtype
+            switch (self.type.subtype) {
+                case self.SUBTYPES.DHT22:
+                    // single pin
+                    self.selectedGpios = [{'gpio':null, 'label':'gpio'}];
+                    return;
             }
         };
 
-        /**
-         * Returns data to add or update sensor
-         */
         self.getSensorData = function(type, subtype, update) {
             var data = {};
-            if (self.type.type === self.TYPE_MOTION) {
+            if (self.type.type === self.TYPES.MOTION) {
                 data = {
                     name: self.name,
                     gpio: self.selectedGpios[0].gpio,
                     inverted: self.inverted,
                 };
-            } else if (self.type.type === self.TYPE_TEMPERATURE && self.type.subtype === self.SUBTYPE_ONEWIRE) {
+            } else if (self.type.type === self.TYPES.TEMPERATURE && self.type.subtype === self.SUBTYPES.ONEWIRE) {
                 data = {
                     name: self.name,
                     device: self.onewire.device,
@@ -166,7 +142,7 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
                     offset: self.offset,
                     offset_unit: self.offsetUnit,
                 };
-            } else if (self.type.subtype === self.SUBTYPE_DHT22) {
+            } else if (self.type.subtype === self.SUBTYPES.DHT22) {
                 data = {
                     name: self.name,
                     gpio: self.selectedGpios[0].gpio,
@@ -184,14 +160,12 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
             return data;
         };
 
-        /**
-         * Add device
-         */
         self.openAddDialog = function() {
             self._resetEditorValues();
             self._openDialog(false)
                 .then(function(resp) {
-                    return sensorsService.addSensor(self.type.type, self.type.subtype, self.getSensorData(self.type.type, self.type.subtype, false));
+                    const sensorData = self.getSensorData(self.type.type, self.type.subtype, false);
+                    return sensorsService.addSensor(self.type.type, self.type.subtype, sensorData);
                 })
                 .then(function() {
                     return cleepService.reloadDevices();
@@ -204,54 +178,49 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
                 });
         };
 
-        /**
-         * Fill editor values
-         */
         self._fillEditorValues = function(device) {
             self.name = device.name;
             self.type = self._getSensorType(device);
 
             // subtypes first!
-            if( self.type.subtype==self.SUBTYPE_DHT22 ) {
+            if (self.type.subtype === self.SUBTYPES.DHT22) {
                 // need to know all dht22 sensors
                 founds = self._searchSensorsByName(device.name);
                 self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'gpio'}];
                 self.interval = device.interval;
-                if( founds.length===2 ) {
-                    self.offset = founds[0].type===self.TYPE_TEMPERATURE ? founds[0].offset : founds[1].offset;
-                    self.offsetUnit = founds[0].type===self.TYPE_TEMPERATURE ? founds[0].offsetunit : founds[1].offsetunit;
-                } else if( founds.length===1 && founds.type===self.TYPE_TEMPERATURE ) {
+                if (founds.length === 2) {
+                    self.offset = founds[0].type === self.TYPES.TEMPERATURE ? founds[0].offset : founds[1].offset;
+                    self.offsetUnit = founds[0].type === self.TYPES.TEMPERATURE ? founds[0].offsetunit : founds[1].offsetunit;
+                } else if (founds.length === 1 && founds.type === self.TYPES.TEMPERATURE) {
                     self.offset = founds[0].offset;
                     self.offsetUnit = founds[0].offsetunit;
                 } else {
                     self.offset = 0;
                     self.offsetUnit = 'celsius';
                 }
-            } else if( self.type.type===self.TYPE_MOTION ) {
+            } else if (self.type.type === self.TYPES.MOTION) {
                 self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'gpio'}];
                 self.inverted = device.inverted;
-            } else if( self.type.type===self.TYPE_TEMPERATURE ) {
+            } else if (self.type.type === self.TYPES.TEMPERATURE) {
                 self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'gpio'}];
                 self.interval = device.interval;
                 self.offset = device.offset;
                 self.offsetUnit = device.offsetunit;
-            } else if( self.type.type===self.TYPE_HUMIDITY ) {
+            } else if (self.type.type === self.TYPES.HUMIDITY) {
                 self.selectedGpios = [{gpio:device.gpios[0].gpio, label:'gpio'}];
                 self.interval = device.interval;
             }
 
         };
 
-        /** 
-         * Update device
-         */
         self.openUpdateDialog = function(device) {
             self._fillEditorValues(device);
 
             // open dialog
             self._openDialog(true)
                 .then(function() {
-                    return sensorsService.updateSensor(device.uuid, self.getSensorData(self.type.type, self.type.subtype, true));
+                    const sensorData = self.getSensorData(self.type.type, self.type.subtype, true);
+                    return sensorsService.updateSensor(device.uuid, sensorData);
                 })
                 .then(function() {
                     return cleepService.reloadDevices();
@@ -264,9 +233,6 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
                 }); 
         }; 
 
-        /** 
-         * Delete device
-         */
         self.openDeleteDialog = function(device) {
             confirm.open('Delete sensor?', 'All sensor data will be deleted and you will not be able to restore it!', 'Delete')
                 .then(function() {
@@ -280,39 +246,6 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
                 }); 
         };
 
-        /**
-         * Get onewire devices
-         */
-        self.getOnewires = function() {
-            sensorsService.getOnewires()
-                .then(function(resp) {
-                    // disable already used items
-                    for( var i=0; i<resp.data.length; i++ ) {
-                        var found = false;
-                        for( var j=0; j<self.devices.length; j++ ) {
-                            if( self.devices[j].type==='temperature' && self.devices[j].subtype==='onewire' && self.devices[j].device===resp.data[i].device ) {
-                                found = true;
-                                break;
-                            }
-                        }
-
-                        resp.data[i].disable = false;
-                        if( found ) {
-                            resp.data[i].disable = true;
-                        }
-                    }
-
-                    // fill onewire devices
-                    self.onewires = resp.data;
-                    self.onewire = self.onewires[0];
-
-                    // toast
-                    if( self.onewires.length===0 ) {
-                        toast.info('No device detected. Please check connections or reboot raspberry if not already done.');
-                    }
-                });
-        };
-
         // TODO handle driver install event
         
 
@@ -320,15 +253,12 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
             return str.charAt(0).toUpperCase() + str.slice(1);
         };
 
-        /**
-         * Init controller
-         */
-        self.init = function() {
+        self.onInit = function() {
             cleepService.getModuleConfig('sensors')
                 .then(function(config) {
                     self.drivers = config.drivers;
                     var types = [];
-                    for( var addon in config.sensorstypes) {
+                    for (const addon in config.sensorstypes) {
                         types.push({
                             label: self.capitalize(config.sensorstypes[addon].subtype) + ': ' + config.sensorstypes[addon].types.join('+'),
                             value: {
@@ -350,10 +280,95 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
             $rootScope.$broadcast('enableFab', actions);
         };
 
+        $rootScope.$watchCollection(
+            () => cleepService.devices,
+            (newDevices) => {
+                if (!newDevices) {
+                    return;
+                }
+
+                const devices = newDevices.filter((device) => device.module === 'sensors');
+
+                const sensors = [];
+                for (const device of devices) {
+                    sensors.push({
+                        icon: self.getSensorIcon(device.type),
+                        title: self.getSensorTitle(device),
+                        subtitle: self.getSensorSubtitle(device),
+                        clicks: [
+                            {
+                                icon: 'pencil',
+                                tooltip: 'Edit sensor',
+                                click: self.openUpdateDialog,
+                                meta: { device },
+                            },
+                            {
+                                icon: 'delete',
+                                tooltip: 'Delete sensor',
+                                click: self.openDeleteDialog,
+                                style: 'md-accent',
+                                meta: { device },
+                            },
+                        ],
+                    });
+                }
+                self.sensors = sensors;
+            }
+        );
+
+        self.getSensorSubtitle = function (sensor) {
+            let subtitle = 'Gpios: ' + sensor.gpios.map((gpio) => gpio.gpio).join(',');
+
+            switch (sensor.type) {
+                case 'temperature':
+                    subtitle += ' - Offset: ' + (sensor.offsetunit === 'celsius' ? sensor.offset + '°C' : sensor.offset + '°F');
+                    subtitle += ' - Freq: ' + (sensor.interval / 60) + 'mins';
+                    break;
+                case 'humidity':
+                    subtitle += ' - Freq: ' + (sensor.interval / 60) + 'mins';
+                    break;
+                case 'motion':
+                    break;
+            }
+
+            return subtitle;
+        };
+
+        self.getSensorTitle = function (sensor) {
+            let title = '<strong>' + sensor.name + '</strong>: ';
+
+            switch (sensor.type) {
+                case 'temperature':
+                    const value = (sensor.offsetunit === 'celsius' ? sensor.celsius : sensor.farenheit) || '-';
+                    title += ' value: ' + (sensor.offsetunit === 'celsius' ? value + '°C' : value + '°F');
+                    break;
+                case 'humidity':
+                    title += ' value: ' + (sensor.humidity || '-') + '%';
+                    break;
+                case 'motion':
+                    title += ' value: ' + (sensor.on ? 'ON' : 'OFF');
+                    title += ', last duration: ' + (sensor.lastduration || 0) + 'secs';
+                    break;
+            }
+
+            title += ', last update: ' + $filter('hrDatetime')(sensor.lastupdate);
+
+            return title;
+        };
+
+        self.getSensorIcon = function (sensorType) {
+            switch (sensorType) {
+                case 'motion': return 'motion-sensor';
+                case 'temperature': return 'thermometer';
+                case 'humidity': return 'water-percent';
+                default: return 'lightbulb-question';
+            }
+        };
+
     }];
 
     var sensorsLink = function(scope, element, attrs, controller) {
-        controller.init();
+        controller.onInit();
     };
 
     return {
@@ -361,22 +376,8 @@ function($rootScope, toast, cleepService, sensorsService, confirm, $mdDialog, $l
         replace: true,
         scope: true,
         controller: sensorsController,
-        controllerAs: 'sensorsCtl',
+        controllerAs: '$ctrl',
         link: sensorsLink
     };
 }]);
-
-angular
-.module('Cleep')
-.filter('displayGpios', function($filter) {
-    return function(gpios) {
-        if( gpios && angular.isArray(gpios) ) {
-            names = [];
-            for( var i=0; i<gpios.length; i++) {
-                names.push(gpios[i].gpio);
-            }
-            return names.join(',');
-        }
-    };
-});
 

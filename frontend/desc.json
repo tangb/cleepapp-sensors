@@ -1,12 +1,81 @@
 {
     "icon": "chip",
     "global": {
-        "js": ["motion.widget.js", "temperature.widget.js", "humidity.widget.js", "sensors.service.js"],
-        "html": ["motion.widget.html", "temperature.widget.html", "humidity.widget.html"]
+        "js": ["sensors.service.js"],
+        "html": []
     },
     "config": {
-        "js": ["sensors.config.js"],
-        "html": ["sensors.config.html", "add-sensor.dialog.html", "update-sensor.dialog.html"]
+        "js": ["sensors.config.js", "sensors.components.js"],
+        "html": ["sensors.config.html", "sensor.dialog.html"]
+    },
+    "widgets": {
+        "temperature": {
+            "header": {
+                "icon": "thermometer"
+            },
+            "content": "<span class=\"md-display-1\">{{ device.celsius | hrTemperature: 'celsius' }}</span>",
+            "footer": [
+                {
+                    "type": "text",
+                    "tooltip": "Last update",
+                    "icon": "clock",
+                    "label": "{{ device.lastupdate | hrDatetime:true }}"
+                },
+                {
+                    "type": "chart",
+                    "options": {
+                        "type": "line",
+                        "fields": ["timestamp", "celsius"],
+                        "color": "#FF9900",
+                        "label": "Temperature (°C)"
+                    }
+                }
+            ]
+        },
+        "motion": {
+            "header": {
+                "icon": "motion-sensor"
+            },
+            "content": "<span class=\"md-display-1\">{{ device.on ? 'ON' : 'OFF' }}</span>",
+            "footer": [
+                {
+                    "type": "text",
+                    "tooltip": "Last update",
+                    "icon": "clock",
+                    "label": "{{ device.lastupdate | hrDatetime:true }}"
+                },
+                {
+                    "type": "chart",
+                    "options": {
+                        "type": "line",
+                        "color": "#24A222"
+                    }
+                }
+            ]
+        },
+        "humidity": {
+            "header": {
+                "icon": "water-percent"
+            },
+            "content": "<span class=\"md-display-1\">{{ device.humidity || '-' }}%</span>",
+            "footer": [
+                {
+                    "type": "text",
+                    "tooltip": "Last update",
+                    "icon": "clock",
+                    "label": "{{ device.lastupdate | hrDatetime:true }}"
+                },
+                {
+                    "type": "chart",
+                    "options": {
+                        "type": "line",
+                        "fields": ["timestamp", "humidity"],
+                        "color": "#6FA8DC",
+                        "label": "Humidity (%)"
+                    }
+                }
+            ]
+        }
     }
 }
 

@@ -1,0 +1,68 @@
+<md-dialog flex="50">
+    <md-toolbar>
+        <div class="md-toolbar-tools">
+            <h2 ng-if="!$ctrl.updateDevice">Add new sensor</h2>
+            <h2 ng-if="$ctrl.updateDevice">Update sensor</h2>
+            <span flex></span>
+            <md-button class="md-icon-button" ng-click="$ctrl.cancelDialog()">
+                <cl-icon cl-icon="close"></cl-icon>
+            </md-button>
+        </div>
+    </md-toolbar>
+
+    <md-dialog-content class="md-dialog-content">
+        <config-text
+            cl-title="Sensor name" cl-required="true" cl-model="$ctrl.name"
+        ></config-text>
+        <config-select
+            cl-title="Sensor type" cl-options="$ctrl.types" cl-model="$ctrl.type" cl-disabled="$ctrl.updateDevice" cl-change="$ctrl.onSensorTypeChanged()"
+        ></config-select>
+        <config-sensor-img
+            cl-title="Sensor connection wiring" type="$ctrl.type" types="$ctrl.TYPES" subtypes="$ctrl.SUBTYPES"
+        ></config-sensor-img>
+
+        <!-- generic motion options -->
+        <config-switch
+            ng-if="$ctrl.type.type === $ctrl.TYPE_MOTION"
+            cl-title="State is inverted ?" cl-model="$ctrl.inverted"
+        ></config-switch>
+
+        <!-- onewire temperature + dht22 options -->
+        <config-select
+            ng-if="$ctrl.type.type === $ctrl.TYPES.TEMPERATURE || $ctrl.type.subtype === $ctrl.SUBTYPES.DHT22"
+            cl-title="Interval" cl-model="$ctrl.interval" cl-options="$ctrl.intervals"
+        ></config-select>
+        <config-number
+            ng-if="$ctrl.type.type === $ctrl.TYPES.TEMPERATURE || $ctrl.type.subtype === $ctrl.SUBTYPES.DHT22"
+            cl-title="Temperature offset" cl-model="$ctrl.offset"
+        ></config-number>
+        <config-select
+            ng-if="$ctrl.type.type === $ctrl.TYPES.TEMPERATURE || $ctrl.type.subtype === $ctrl.SUBTYPES.DHT22"
+            cl-title="Temperature offset unit" cl-model="$ctrl.offsetUnit" cl-options="$ctrl.offsetUnits"
+        ></config-select>
+
+        <!-- hardware -->
+        <config-sensor-onewire
+            ng-if="$ctrl.type.subtype === $ctrl.SUBTYPES.ONEWIRE"
+            drivers="$ctrl.drivers" update-device="$ctrl.updateDevice" installing-driver="sensorsCrl.installDriver"
+            types="$ctrl.TYPES" subtypes="$ctrl.SUBTYPES"
+        ></config-sensor-onewire>
+        <div ng-if="$ctrl.type.subtype !== $ctrl.SUBTYPES.ONEWIRE">
+            <div gpios-pins-component readonly="$ctrl.updateDevice" selected-gpios="$ctrl.selectedGpios"></div>
+        </div>
+    </md-dialog-content>
+
+    <md-dialog-actions layout="row">
+        <span flex></span>
+        <md-button ng-if="!$ctrl.updateDevice" ng-click="$ctrl.closeDialog()" class="md-raised md-primary">
+            <cl-icon cl-icon="plus"></cl-icon>
+            Add sensor
+        </md-button>
+        <md-button ng-if="$ctrl.updateDevice" ng-click="$ctrl.closeDialog()" class="md-raised md-primary">
+            <cl-icon cl-icon="pencil"></cl-icon>
+            Update sensor
+        </md-button>
+    </md-dialog-actions>
+
+</md-dialog>
+
