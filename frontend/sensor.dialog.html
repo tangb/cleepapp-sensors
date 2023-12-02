@@ -47,9 +47,10 @@
             drivers="$ctrl.drivers" update-device="$ctrl.updateDevice" installing-driver="sensorsCrl.installDriver"
             types="$ctrl.TYPES" subtypes="$ctrl.SUBTYPES"
         ></config-sensor-onewire>
-        <div ng-if="$ctrl.type.subtype !== $ctrl.SUBTYPES.ONEWIRE">
-            <div gpios-pins-component readonly="$ctrl.updateDevice" selected-gpios="$ctrl.selectedGpios"></div>
-        </div>
+        <config-gpios-pins
+            ng-if="$ctrl.type.subtype !== $ctrl.SUBTYPES.ONEWIRE"
+            cl-title="Configure sensor pins" readonly="$ctrl.updateDevice" selected-gpios="$ctrl.selectedGpios"
+        ></config-gpios-pins>
     </md-dialog-content>
 
     <md-dialog-actions layout="row">
