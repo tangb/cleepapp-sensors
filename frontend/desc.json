@@ -19,7 +19,8 @@
                     "type": "text",
                     "tooltip": "Last update",
                     "icon": "clock",
-                    "label": "{{ device.lastupdate | hrDatetime:true }}"
+                    "attr": "lastupdate",
+                    "filter": "hrDatetime:true"
                 },
                 {
                     "type": "chart",
@@ -42,7 +43,8 @@
                     "type": "text",
                     "tooltip": "Last update",
                     "icon": "clock",
-                    "label": "{{ device.lastupdate | hrDatetime:true }}"
+                    "attr": "lastupdate",
+                    "filter": "hrDatetime:true"
                 },
                 {
                     "type": "chart",
@@ -63,7 +65,8 @@
                     "type": "text",
                     "tooltip": "Last update",
                     "icon": "clock",
-                    "label": "{{ device.lastupdate | hrDatetime:true }}"
+                    "attr": "lastupdate",
+                    "filter": "hrDatetime:true"
                 },
                 {
                     "type": "chart",
