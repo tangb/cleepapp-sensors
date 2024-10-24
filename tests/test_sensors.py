@@ -1,9 +1,11 @@
+from cleep.libs.tests import session, lib
 import unittest
 import logging
 import time
 import sys, os
 import shutil
 import copy
+from threading import Event
 sys.path.append('../')
 from backend.sensors import Sensors
 from backend.sensor import Sensor
@@ -14,9 +16,11 @@ from backend.sensorstemperatureupdateevent import SensorsTemperatureUpdateEvent
 from backend.sensorsmotiononevent import SensorsMotionOnEvent
 from backend.sensorsmotionoffevent import SensorsMotionOffEvent
 from cleep.exception import InvalidParameter, MissingParameter, CommandError
-from cleep.libs.tests import session, lib
+from cleep.libs.tests.common import get_log_level
 from cleep.libs.internals.task import Task
-from mock import Mock, patch, mock_open
+from unittest.mock import Mock, patch, mock_open
+
+LOG_LEVEL = get_log_level()
 
 class FakeSensor(Sensor):
     TYPES = ['test']
@@ -62,7 +66,8 @@ class FakeSensor(Sensor):
         pass
     
     def get_task(self, sensors):
-        return Task(60, self.task, None)
+        self.task = Mock()
+        return self.task
 
 
 
@@ -118,12 +123,13 @@ class SensorsTests(unittest.TestCase):
     }
 
     def setUp(self):
-        logging.basicConfig(level=logging.FATAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
+        logging.basicConfig(level=LOG_LEVEL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session = session.TestSession(self)
 
-        self.module = self.session.setup(Sensors)
 
-    def init_session(self, start_module=True):
+    def init_session(self, start_module=True, mock_on_start=True, mock_on_stop=True):
+        self.module = self.session.setup(Sensors, mock_on_start=mock_on_start, mock_on_stop=mock_on_stop)
+
         self.session.add_mock_command(self.session.make_mock_command('get_raspi_gpios', data={'GPIO18': 56}))
 
         # overwrite sensors by fake one
@@ -140,7 +146,7 @@ class SensorsTests(unittest.TestCase):
         self.session.clean()
 
     def test_on_start(self):
-        self.init_session(False)
+        self.init_session(False, mock_on_start=False)
         sensor = {
             'uuid': '123-456-789',
             'type': 'test',
@@ -157,11 +163,10 @@ class SensorsTests(unittest.TestCase):
 
         self.assertTrue(self.session.command_called('get_raspi_gpios'))
         self.assertIsNotNone(self.addon.raspi_gpios)
-
         self.module._start_sensor_task.assert_called_with(session.AnyArg(), [sensor])
 
     def test_on_start_with_unsupported_sensor_type(self):
-        self.init_session(False)
+        self.init_session(False, mock_on_start=False)
         sensor = {
             'uuid': '123-456-789',
             'type': 'dummy',
@@ -240,8 +245,9 @@ class SensorsTests(unittest.TestCase):
 
         res = self.module._get_assigned_gpios()
         logging.debug('Assigned gpios: %s' % res)
+
         self.assertTrue(type(res) is list, 'Invalid type of _get_assigned_gpios. Must be list')
-        self.assertNotEqual(len(res), 0, '_get_assigned_gpios must return non empty dict')
+        self.assertNotEqual(len(res), 0, '_get_assigned_gpios must return non empty list')
 
     def test_get_assigned_gpios_with_error(self):
         self.init_session(True)
@@ -249,7 +255,7 @@ class SensorsTests(unittest.TestCase):
 
         res = self.module._get_assigned_gpios()
         self.assertTrue(type(res) is list, 'Invalid type of _get_assigned_gpios. Must be list')
-        self.assertEqual(len(res), 0, '_get_assigned_gpios must return empty dict when error')
+        self.assertEqual(len(res), 0, '_get_assigned_gpios must return empty list when error')
 
     def test_fix_gpio_device(self):
         self.init_session(True)
@@ -739,7 +745,7 @@ class SensorsTests(unittest.TestCase):
             'startup': True,
             'event': 'system.startup.fake'
         }
-        self.module.event_received(event)
+        self.module.on_event(event)
         self.assertEqual(mock.call_count, 0, 'Addon process_event should not be called')
 
     def test_receive_install_driver_event(self):
@@ -751,7 +757,7 @@ class SensorsTests(unittest.TestCase):
             'startup': False,
             'event': 'system.driver.install'
         }
-        self.module.event_received(install_event)
+        self.module.on_event(install_event)
         self.assertEqual(self.addon.process_event.call_count, 1, 'Addon process_event should be called')
         self.assertEqual(self.addon.process_event.call_args.args[0], install_event, 'Process_event first param should be event')
         self.assertIsNone(self.addon.process_event.call_args.args[1], 'Process_event sensors value should be None for driver event')
@@ -765,7 +771,7 @@ class SensorsTests(unittest.TestCase):
             'startup': False,
             'event': 'system.driver.uninstall'
         }
-        self.module.event_received(uninstall_event)
+        self.module.on_event(uninstall_event)
         self.assertEqual(self.addon.process_event.call_count, 1, 'Addon process_event should be called')
         self.assertEqual(self.addon.process_event.call_args.args[0], uninstall_event, 'Process_event first param should be event')
         self.assertIsNone(self.addon.process_event.call_args.args[1], 'Process_event sensors value should be None for driver event')
@@ -781,7 +787,7 @@ class SensorsTests(unittest.TestCase):
                 'init': True
             }
         }
-        self.module.event_received(event)
+        self.module.on_event(event)
         self.assertEqual(self.addon.process_event.call_count, 0, 'Init gpio event should be dropped')
 
     def test_receive_gpio_event(self):
@@ -803,7 +809,7 @@ class SensorsTests(unittest.TestCase):
                 'init': False,
             }
         }
-        self.module.event_received(event)
+        self.module.on_event(event)
         self.assertEqual(mock.call_count, 1, 'Addon process_event should be called')
 
     def test_receive_gpio_event_with_no_sensor_found(self):
@@ -820,7 +826,7 @@ class SensorsTests(unittest.TestCase):
                 'init': False,
             }
         }
-        self.module.event_received(event)
+        self.module.on_event(event)
         self.assertEqual(mock.call_count, 0, 'Addon process_event should not be called')
 
     def test_receive_gpio_event_with_no_addon_found(self):
@@ -842,7 +848,7 @@ class SensorsTests(unittest.TestCase):
                 'init': False,
             }
         }
-        self.module.event_received(event)
+        self.module.on_event(event)
         self.assertEqual(mock.call_count, 0, 'Addon process_event should not be called')
 
     """
@@ -859,12 +865,12 @@ class SensorsTests(unittest.TestCase):
             }],
             'uuid': '123-456-789'
         }
-        task = Task(60, Mock(return_value=None), None)
-        self.module._start_sensor_task(task, [sensor,])
+        mock_task = Mock()
+        self.module._start_sensor_task(mock_task, [sensor,])
         
         self.assertEqual(len(self.module._tasks_by_device_uuid), 1, 'Start_sensor_task should save task')
         self.assertEqual(list(self.module._tasks_by_device_uuid.keys())[0], sensor['uuid'], 'Task should be saved with sensor uuid')
-        self.assertTrue(task.is_running(), 'Sensor task should be started')
+        mock_task.start.assert_called()
 
     def test_start_sensor_task_with_two_sensors(self):
         self.init_session(True)
@@ -886,13 +892,13 @@ class SensorsTests(unittest.TestCase):
             }],
             'uuid': '321-654-987'
         }
-        task = Task(60, Mock(return_value=None), None)
-        self.module._start_sensor_task(task, [sensor1, sensor2])
+        mock_task = Mock()
+        self.module._start_sensor_task(mock_task, [sensor1, sensor2])
         
         self.assertEqual(len(self.module._tasks_by_device_uuid), 2, 'Start_sensor_task should save task for each sensor')
         self.assertTrue(all(key in [sensor1['uuid'], sensor2['uuid']] for key in self.module._tasks_by_device_uuid.keys()), 'Task should be saved with sensors uuid')
         self.assertEqual(self.module._tasks_by_device_uuid[sensor1['uuid']], self.module._tasks_by_device_uuid[sensor2['uuid']], 'Same task should be save for all sensors')
-        self.assertTrue(task.is_running(), 'Sensor task should be started')
+        mock_task.start.assert_called()
 
     def test_start_sensor_task_with_no_task(self):
         self.init_session(True)
@@ -920,13 +926,14 @@ class SensorsTests(unittest.TestCase):
             }],
             'uuid': '123-456-789'
         }
-        task = Task(60, Mock(return_value=None), None)
-        self.module._start_sensor_task(task, [sensor,])
+        mock_task = Mock()
+        mock_task.is_running.return_value = False
+        self.module._start_sensor_task(mock_task, [sensor,])
         
         self.module._stop_sensor_task(sensor)
         
         self.assertEqual(len(self.module._tasks_by_device_uuid), 0, 'Task should be deleted when stopped')
-        self.assertFalse(task.is_running(), 'Task should be stopped')
+        mock_task.stop.assert_called()
 
     def test_stop_sensor_task_with_unknow_sensor(self):
         self.init_session(True)
@@ -939,8 +946,8 @@ class SensorsTests(unittest.TestCase):
             }],
             'uuid': '123-456-789'
         }
-        task = Task(60, Mock(return_value=None), None)
-        self.module._start_sensor_task(task, [sensor,])
+        mock_task = Mock()
+        self.module._start_sensor_task(mock_task, [sensor,])
         
         self.module._stop_sensor_task({
             'name': 'othersensor',
@@ -948,7 +955,7 @@ class SensorsTests(unittest.TestCase):
         })
         
         self.assertEqual(len(self.module._tasks_by_device_uuid), 1, 'Task should not be deleted')
-        self.assertTrue(task.is_running(), 'Task should still run')
+        mock_task.stop.assert_not_called()
  
     def test_configure_start_sensor_task(self):
         self.init_session(True)
@@ -1082,7 +1089,7 @@ class OnewireSensorTests(unittest.TestCase):
     ONEWIRE_PATH = '/tmp/onewire'
 
     def setUp(self):
-        logging.basicConfig(level=logging.FATAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
+        logging.basicConfig(level=LOG_LEVEL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session = session.TestSession(self)
         self.module = self.session.setup(Sensors)
 
@@ -1534,6 +1541,8 @@ class OnewireSensorTests(unittest.TestCase):
         addon = self.get_addon()
 
         task = addon.get_task(sensor)
+        logging.info('==> %s', task)
+        # self.assertEqual(task, sensor.mock_task)
         self.assertTrue(isinstance(task, Task), 'Get_task should returns a Task instance')
         self.assertFalse(task.is_running(), 'Task should not be launched')
 
@@ -1637,10 +1646,11 @@ class OnewireSensorTests(unittest.TestCase):
 class MotionGenericSensorTests(unittest.TestCase):
 
     def setUp(self):
-        logging.basicConfig(level=logging.FATAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
+        logging.basicConfig(level=LOG_LEVEL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session = session.TestSession(self)
 
         self.module = self.session.setup(Sensors)
+        self.module.raspi_gpios = {'GPIO18': 56}
         self.session.add_mock_command(self.session.make_mock_command('get_raspi_gpios', data={'GPIO18': 56}))
         self.session.add_mock_command(self.session.make_mock_command('get_assigned_gpios', data=[]))
         self.session.add_mock_command(self.session.make_mock_command('is_gpio_on', data=False))
@@ -1652,6 +1662,7 @@ class MotionGenericSensorTests(unittest.TestCase):
     def get_addon(self):
         try:
             addon = self.module.addons_by_name['SensorMotionGeneric']
+            addon.raspi_gpios = {'GPIO18': 56}
             return addon
         except:
             return None
@@ -1692,15 +1703,17 @@ class MotionGenericSensorTests(unittest.TestCase):
         self.assertTrue(isinstance(sensor['inverted'], bool), '"inverted" field should be bool')
 
     def test_add_is_gpio_on_failed(self):
-        self.session.add_mock_command(self.session.make_mock_command('get_reserved_gpio', data={
+        get_reserved_gpio_mock = self.session.make_mock_command('get_reserved_gpio', data=[{
             'gpio': 'GPIO18',
             'pin': 18,
             'uuid': '123-456-789'
-        }))
+        }])
+        self.session.add_mock_command(get_reserved_gpio_mock)
         self.session.set_mock_command_fail('is_gpio_on')
         addon = self.get_addon()
 
         addon.add('name', 'GPIO18', False)
+
         self.assertEqual(self.session.command_call_count('is_gpio_on'), 1, 'Command is_gpio_on should be called')
 
     def test_add_invalid_params(self):
@@ -1952,10 +1965,11 @@ class MotionGenericSensorTests(unittest.TestCase):
 class Dht22SensorTests(unittest.TestCase):
 
     def setUp(self):
-        logging.basicConfig(level=logging.FATAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
+        logging.basicConfig(level=LOG_LEVEL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session = session.TestSession(self)
 
         self.module = self.session.setup(Sensors)
+        self.module.raspi_gpios = {'GPIO18': 56}
         self.session.add_mock_command(self.session.make_mock_command('get_raspi_gpios', data={'GPIO18': 56}))
         self.session.add_mock_command(self.session.make_mock_command('get_assigned_gpios', data=[]))
         self.session.start_module(self.module)
@@ -1966,6 +1980,7 @@ class Dht22SensorTests(unittest.TestCase):
     def get_addon(self):
         try:
             addon = self.module.addons_by_name['SensorDht22']
+            addon.raspi_gpios = {'GPIO18': 56}
             return addon
         except:
             return None
@@ -2600,7 +2615,7 @@ class Dht22SensorTests(unittest.TestCase):
 class TestsOnewireDriver(unittest.TestCase):
 
     def setUp(self):
-        logging.basicConfig(level=logging.FATAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
+        logging.basicConfig(level=LOG_LEVEL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.lib = lib.TestLib()
 
     def init_session(self):
@@ -2700,7 +2715,7 @@ class TestsOnewireDriver(unittest.TestCase):
 class TestsSensorsHumidityUpdateEvent(unittest.TestCase):
 
     def setUp(self):
-        logging.basicConfig(level=logging.FATAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
+        logging.basicConfig(level=LOG_LEVEL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session = session.TestSession(self)
         self.event = self.session.setup_event(SensorsHumidityUpdateEvent)
 
@@ -2715,7 +2730,7 @@ class TestsSensorsHumidityUpdateEvent(unittest.TestCase):
 class TestsSensorsTemperatureUpdateEvent(unittest.TestCase):
 
     def setUp(self):
-        logging.basicConfig(level=logging.FATAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
+        logging.basicConfig(level=LOG_LEVEL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session = session.TestSession(self)
         self.event = self.session.setup_event(SensorsTemperatureUpdateEvent)
 
@@ -2730,7 +2745,7 @@ class TestsSensorsTemperatureUpdateEvent(unittest.TestCase):
 class TestsSensorsMotionOnEvent(unittest.TestCase):
 
     def setUp(self):
-        logging.basicConfig(level=logging.FATAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
+        logging.basicConfig(level=LOG_LEVEL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session = session.TestSession(self)
         self.event = self.session.setup_event(SensorsMotionOnEvent)
 
@@ -2745,7 +2760,7 @@ class TestsSensorsMotionOnEvent(unittest.TestCase):
 class TestsSensorsMotionOffEvent(unittest.TestCase):
 
     def setUp(self):
-        logging.basicConfig(level=logging.FATAL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
+        logging.basicConfig(level=LOG_LEVEL, format=u'%(asctime)s %(name)s:%(lineno)d %(levelname)s : %(message)s')
         self.session = session.TestSession(self)
         self.event = self.session.setup_event(SensorsMotionOffEvent)
 
