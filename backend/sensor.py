@@ -19,12 +19,26 @@ class Sensor:
             sensors (Sensors): Sensors instance
         """
         self.sensors = sensors
+        self.task_factory = sensors.task_factory
         self.logger = sensors.logger
         # will be filled by sensors during module configuration
         self.raspi_gpios = {}
         self.drivers = {}
         self.cleep_filesystem = sensors.cleep_filesystem
         self.__task = None
+        self._check_parameters = sensors._check_parameters
+
+        # trick to avoid pylint errors about protected function access
+        self.sensors_fn = {
+            "register_driver": self.sensors._register_driver,
+            "get_event": self.sensors._get_event,
+            "update_device": self.sensors._update_device,
+            "search_device": self.sensors._search_device,
+            "search_devices": self.sensors._search_devices,
+            "search_by_gpio": self.sensors._search_by_gpio,
+            "get_device": self.sensors._get_device,
+            "get_assigned_gpios": self.sensors._get_assigned_gpios,
+        }
 
     def _register_driver(self, driver):
         """
@@ -33,7 +47,7 @@ class Sensor:
         Args:
             driver (Driver): driver instance
         """
-        self.sensors._register_driver(driver)
+        self.sensors_fn["register_driver"](driver)
         self.drivers[driver.name] = driver
 
     def has_drivers(self):
@@ -52,7 +66,7 @@ class Sensor:
         Returns:
             event (Event): event or None
         """
-        return self.sensors._get_event(event_name)
+        return self.sensors_fn["get_event"](event_name)
 
     def send_command(self, command, to, params=None, timeout=3.0):
         """
@@ -67,7 +81,7 @@ class Sensor:
         Args:
             sensor (dict): sensor data
         """
-        return self.sensors._update_device(sensor["uuid"], sensor)
+        return self.sensors_fn["update_device"](sensor["uuid"], sensor)
 
     def _search_device(self, key, value):
         """
@@ -77,7 +91,7 @@ class Sensor:
             key (string): field key
             value (string): field value
         """
-        return self.sensors._search_device(key, value)
+        return self.sensors_fn["search_device"](key, value)
 
     def _search_devices(self, key, value):
         """
@@ -87,7 +101,7 @@ class Sensor:
             key (string): field key
             value (string): field value
         """
-        return self.sensors._search_devices(key, value)
+        return self.sensors_fn["search_devices"](key, value)
 
     def _search_by_gpio(self, gpio_uuid):
         """
@@ -99,7 +113,7 @@ class Sensor:
         Returns:
             dict: sensor data or None if nothing found
         """
-        self.sensors._search_by_gpio(gpio_uuid)
+        return self.sensors_fn["search_by_gpio"](gpio_uuid)
 
     def _get_device(self, uuid):
         """
@@ -108,7 +122,7 @@ class Sensor:
         Args:
             uuid (string): device uuid
         """
-        return self.sensors._get_device(uuid)
+        return self.sensors_fn["get_device"](uuid)
 
     def _get_assigned_gpios(self):
         """
@@ -117,12 +131,22 @@ class Sensor:
         Returns:
             dict: assigned gpios
         """
-        return self.sensors._get_assigned_gpios()
+        return self.sensors_fn["get_assigned_gpios"]()
 
-    def update(self, sensor): # pragma: no cover
+    def update(self, sensor, params):  # pragma: no cover
         """
         Returns sensor data to update
         Can perform specific stuff
+
+        Args:
+            sensor (dict): existing sensor to update
+            params (dict): update params. Varies according to sensor::
+
+                {
+                    param1 (any),
+                    param2 (any),
+                    ...
+                }
 
         Returns:
             dict: sensor data to update::
@@ -134,13 +158,22 @@ class Sensor:
 
         """
         raise NotImplementedError(
-            'Function "update" must be implemented in "%s"' % self.__class__.__name__
+            f'Function "update" must be implemented in "{self.__class__.__name__}"'
         )
 
-    def add(self): # pragma: no cover
+    def add(self, params):  # pragma: no cover
         """
         Return sensor data to add.
         Can perform specific stuff
+
+        Args:
+            params (dict): add params. Varies according to sensor::
+
+                {
+                    param1 (any),
+                    param2 (any),
+                    ...
+                }
 
         Returns:
             dict: sensor data to add::
@@ -152,7 +185,7 @@ class Sensor:
 
         """
         raise NotImplementedError(
-            'Function "add" must be implemented in "%s"' % self.__class__.__name__
+            f'Function "add" must be implemented in "{self.__class__.__name__}"'
         )
 
     def delete(self, sensor):
@@ -178,23 +211,23 @@ class Sensor:
             ],
         }
 
-    def get_task(self, sensors):
+    def get_task(self, sensor):
         """
         Prepare specific sensor task
 
         Args:
-            sensors (list): list of sensors data (dict)
+            sensor (dict): sensor instance
 
         Returns:
             Task: task instance that will be launched by sensors instance or None if no task needed
         """
         # instanciate singleton
         if self.__task is None:
-            self.__task = self._get_task(sensors)
+            self.__task = self._get_task(sensor)
 
         return self.__task
 
-    def _get_task(self, sensors): # pragma: no cover
+    def _get_task(self, sensor):  # pragma: no cover
         """
         Prepare specific sensor task
 
@@ -205,10 +238,10 @@ class Sensor:
             Task: task instance that will be launched by sensors instance or None if no task needed
         """
         raise NotImplementedError(
-            'Function "get_task" must be implemented in "%s"' % self.__class__.__name__
+            f'Function "get_task" must be implemented in "{self.__class__.__name__}"'
         )
 
-    def process_event(self, event, sensor): # pragma: no cover
+    def process_event(self, event, sensor):  # pragma: no cover
         """
         Process received event. Can be a gpio or driver event
 
@@ -217,4 +250,3 @@ class Sensor:
             sensor (dict): sensor data
         """
         return
-

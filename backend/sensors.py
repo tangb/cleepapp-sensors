@@ -77,10 +77,7 @@ class Sensors(CleepModule):
             if type_ not in self.addons_by_type:
                 self.addons_by_type[type_] = {}
             if addon.SUBTYPE in self.addons_by_type[type_]:
-                raise Exception(
-                    'Subtype "%s" already registered in type "%s"'
-                    % (addon.SUBTYPE, type_)
-                )
+                raise ValueError(f'Subtype "{addon.SUBTYPE}" already registered in type "{type_}"')
             self.addons_by_type[type_][addon.SUBTYPE] = addon
 
         # save sensors types (by addons)
@@ -114,23 +111,16 @@ class Sensors(CleepModule):
             and not method_name.startswith("_")
             and callable(getattr(addon, method_name))
         ]
-        self.logger.debug(
-            'Addon "%s" public methods: %s' % (addon.__class__.__name__, methods)
-        )
+        self.logger.debug('Addon "%s" public methods: %s', addon.__class__.__name__, methods)
         for method_name in methods:
             if hasattr(self, method_name): # pragma: no cover
                 self.logger.error(
-                    'Public method "%s" from addon "%s" is already referenced. Please rename it'
-                    % (method_name, addon.__class__.__name__)
+                    'Public method "%s" from addon "%s" is already referenced. Please rename it',
+                    method_name, addon.__class__.__name__
                 )
                 continue
-            self.logger.debug('Register method "%s" from addon "%s"' % (method_name, addon.__class__.__name__))
+            self.logger.debug('Register method "%s" from addon "%s"', method_name, addon.__class__.__name__)
             setattr(self, method_name, getattr(addon, method_name))
-
-        # inject in addon some sensors methods
-        sensors_methods = ['_check_parameters']
-        for method_name in sensors_methods:
-            setattr(addon, method_name, getattr(self, method_name))
 
     def _on_start(self):
         """
@@ -159,7 +149,7 @@ class Sensors(CleepModule):
         for _, task in self._tasks_by_device_uuid.items():
             task.stop()
 
-    def event_received(self, event):
+    def on_event(self, event):
         """
         Event received
 
@@ -189,13 +179,13 @@ class Sensors(CleepModule):
 
             # search sensor
             sensor = self._search_by_gpio(gpio_uuid)
-            self.logger.debug("Found sensor: %s" % sensor)
+            self.logger.debug("Found sensor: %s", sensor)
             if not sensor:
                 return
 
             # process event on addon
             addon = self._get_addon(sensor["type"], sensor["subtype"])
-            self.logger.debug("Found addon: %s" % addon)
+            self.logger.debug("Found addon: %s", addon)
             if addon:
                 addon.process_event(event, sensor)
 
@@ -210,11 +200,11 @@ class Sensors(CleepModule):
             dict: sensor data or None if nothing found
         """
         devices = self.get_module_devices()
-        for device_uuid in devices:
-            for gpio in devices[device_uuid]["gpios"]:
+        for device in devices.values():
+            for gpio in device["gpios"]:
                 if gpio["uuid"] == gpio_uuid:
                     # sensor found
-                    return devices[device_uuid]
+                    return device
 
         # nothing found
         return None
@@ -247,8 +237,8 @@ class Sensors(CleepModule):
         """
         devices = self._get_devices()
         uses = 0
-        for device_uuid in devices:
-            for gpio_ in devices[device_uuid]["gpios"]:
+        for device in devices.values():
+            for gpio_ in device["gpios"]:
                 if gpio == gpio_["gpio"]:
                     uses += 1
         return uses
@@ -328,7 +318,7 @@ class Sensors(CleepModule):
         Returns:
             dict: input gpio with valid data to request gpios app
         """
-        self.logger.debug("Gpio to fix: %s" % gpio_device)
+        self.logger.debug("Gpio to fix: %s", gpio_device)
         fixed_gpio_device = copy.deepcopy(gpio_device)
         if "uuid" in gpio_device:
             fixed_gpio_device["device_uuid"] = gpio_device["uuid"]
@@ -338,32 +328,40 @@ class Sensors(CleepModule):
 
     def add_sensor(self, sensor_type, sensor_subtype, data):
         """
-        Add sensor
+        Add sensor according to specified type and subtype
 
         Args:
             sensor_type (string): sensor type
             sensor_subtype (string): sensor subtype
-            data (dict): sensor data
+            data (dict): sensor data (differs from kind of sensor)::
+
+                {
+                    name (str): sensor name,
+                    gpio (str): used gpio
+                    ...
+                }
 
         Returns:
-            list: list of created sensors
+            list: list of created sensors::
+
+                [ SensorInstance1, SensorInstance2, ...]
         """
         addon = self._get_addon(sensor_type, sensor_subtype)
         if addon is None:
-            raise CommandError('Sensor subtype "%s" doesn\'t exist' % sensor_subtype)
+            raise CommandError(f'Sensor subtype "{sensor_subtype}" doesn\'t exist')
 
         sensor_devices = []
         gpio_devices = []
         try:
-            self.logger.debug('Addon "%s" add with data: %s' % (addon.__class__.__name__, data))
+            self.logger.debug('Addon "%s" add with data: %s', addon.__class__.__name__, data)
             (gpios, sensors) = addon.add(**data).values()
             if not isinstance(gpios, list) or not isinstance(sensors, list): # pragma: no cover
-                raise Exception("Invalid gpios or sensors type. Must be a list")
+                raise TypeError("Invalid gpios or sensors type. Must be a list")
 
             # add gpios
-            self.logger.debug("Gpios: %s" % gpios)
+            self.logger.debug("Gpios: %s", gpios)
             for gpio in gpios:
-                self.logger.debug("add_gpio with: %s" % gpio)
+                self.logger.debug("add_gpio with: %s", gpio)
                 resp_gpio = self.send_command("add_gpio", "gpios", self._fix_gpio_device(gpio))
                 if resp_gpio.error:
                     raise CommandError(resp_gpio.message)
@@ -375,7 +373,7 @@ class Sensors(CleepModule):
 
             # add sensors
             for sensor in sensors:
-                self.logger.debug("add_device with: %s" % sensor)
+                self.logger.debug("add_device with: %s", sensor)
                 added_sensor = self._add_device(sensor)
                 if added_sensor is None:
                     raise CommandError("Unable to save new sensor")
@@ -388,7 +386,7 @@ class Sensors(CleepModule):
 
         except Exception as error:
             self.logger.exception(
-                'Error occured adding sensor "%s-%s": %s' % (sensor_type, sensor_subtype, data)
+                'Error occured adding sensor "%s-%s": %s', sensor_type, sensor_subtype, data
             )
 
             # undo saved gpios
@@ -415,14 +413,12 @@ class Sensors(CleepModule):
             raise MissingParameter("Uuid parameter is missing")
         sensor = self._get_device(sensor_uuid)
         if sensor is None:
-            raise InvalidParameter('Sensor with uuid "%s" doesn\'t exist' % sensor_uuid)
+            raise InvalidParameter(f'Sensor with uuid "{sensor_uuid}" doesn\'t exist')
 
         # search addon
         addon = self._get_addon(sensor["type"], sensor["subtype"])
         if addon is None:
-            raise CommandError(
-                'Unhandled sensor type "%s-%s"' % (sensor["type"], sensor["subtype"])
-            )
+            raise CommandError(f'Unhandled sensor type "{sensor["type"]}-{sensor["subtype"]}"')
 
         try:
             # stop task
@@ -430,17 +426,17 @@ class Sensors(CleepModule):
 
             (gpios, sensors) = addon.delete(sensor).values()
             if not isinstance(gpios, list) or not isinstance(sensors, list): # pragma: no cover
-                raise Exception("Invalid gpios or sensors type. Must be a list")
+                raise TypeError("Invalid gpios or sensors type. Must be a list")
 
             # unconfigure gpios
-            self.logger.debug("Gpios=%s" % gpios)
+            self.logger.debug("Gpios: %s", gpios)
             for gpio in gpios:
                 # is a reserved gpio
-                self.logger.debug('is_reserved_gpio for gpio "%s"' % gpio)
+                self.logger.debug('is_reserved_gpio for gpio "%s"', gpio)
                 resp = self.send_command(
                     "is_reserved_gpio", "gpios", {"gpio": gpio["uuid"]}
                 )
-                self.logger.debug("is_reserved_gpio: %s" % resp)
+                self.logger.debug("is_reserved_gpio: %s", resp)
                 if resp.error:
                     raise CommandError(resp.message)
                 reserved_gpio = resp.data
@@ -460,13 +456,13 @@ class Sensors(CleepModule):
                 # delete device in gpio module
                 if delete_gpio:
                     self.logger.debug(
-                        'Delete gpio "%s" from gpios module' % gpio["uuid"]
+                        'Delete gpio "%s" from gpios module', gpio["uuid"]
                     )
                     resp = self.send_command(
                         "delete_gpio", "gpios", {"device_uuid": gpio["uuid"]}
                     )
                     if resp.error:
-                        self.logger.warning("Gpio can't be deleted: %s" % resp.error)
+                        self.logger.warning("Gpio can't be deleted: %s", resp.error)
                 else:
                     self.logger.debug(
                         "Gpio device not deleted because other sensor is using it"
@@ -475,12 +471,12 @@ class Sensors(CleepModule):
             # delete sensors
             for sensor in sensors:
                 self._delete_device(sensor["uuid"])
-                self.logger.debug('Sensor "%s" deleted successfully' % sensor["uuid"])
+                self.logger.debug('Sensor "%s" deleted successfully', sensor["uuid"])
 
             return True
 
         except Exception as error:
-            self.logger.exception('Error occured deleting sensor "%s":' % (sensor_uuid))
+            self.logger.exception('Error occured deleting sensor "%s":', sensor_uuid)
             raise CommandError("Error deleting sensor") from error
 
     def update_sensor(self, sensor_uuid, data):
@@ -489,23 +485,30 @@ class Sensors(CleepModule):
 
         Args:
             sensor_uuid (string): sensor uuid
-            data (dict): sensor data
+            data (dict): sensor data::
+
+                {
+                    name (str): sensor name,
+                    gpio (str): used gpio
+                    ...
+                }
 
         Returns:
-            list: list of updated sensors
+            list: list of updated sensors::
+
+                [SensorInstance1, SensorInstance2, ...]
+
         """
         if not sensor_uuid:
             raise MissingParameter("Uuid parameter is missing")
         sensor = self._get_device(sensor_uuid)
         if sensor is None:
-            raise InvalidParameter('Sensor with uuid "%s" doesn\'t exist' % sensor_uuid)
+            raise InvalidParameter(f'Sensor with uuid "{sensor_uuid}" doesn\'t exist')
 
         # search addon
         addon = self._get_addon(sensor["type"], sensor["subtype"])
         if addon is None:
-            raise CommandError(
-                'Unhandled sensor type "%s-%s"' % (sensor["type"], sensor["subtype"])
-            )
+            raise CommandError(f'Unhandled sensor type "{sensor["type"]}-{sensor["subtype"]}"')
 
         sensor_devices = []
         gpio_devices = []
@@ -514,7 +517,7 @@ class Sensors(CleepModule):
             data["sensor"] = sensor
             (gpios, sensors) = addon.update(**data).values()
             if not isinstance(gpios, list) or not isinstance(sensors, list): # pragma: no cover
-                raise Exception("Invalid gpios or sensors type. Must be a list")
+                raise TypeError("Invalid gpios or sensors type. Must be a list")
 
             # update gpios
             for gpio in gpios:
@@ -539,7 +542,7 @@ class Sensors(CleepModule):
 
         except Exception as error:
             self.logger.exception(
-                'Error occured updating sensor "%s": %s' % (sensor_uuid, data)
+                'Error occured updating sensor "%s": %s', sensor_uuid, data
             )
             raise CommandError("Error updating sensor") from error
 
@@ -549,11 +552,11 @@ class Sensors(CleepModule):
 
         Args:
             task (Task): task to start. If None nothing will be done
-            sensor (dict): sensor data
+            sensors (list): sensors list. If None nothing will be done
         """
         # for some sensors there is no task because sensor value is updated by another way (gpio event...)
         if not task or not sensors:
-            self.logger.debug("No task for sensors %s" % sensors)
+            self.logger.debug("No task for sensors %s", sensors)
             return
 
         # save and start task
@@ -561,9 +564,7 @@ class Sensors(CleepModule):
         for sensor in sensors:
             self._tasks_by_device_uuid[sensor["uuid"]] = task
             sensor_name = sensor["name"]
-        self.logger.debug(
-            'Start task for sensor "%s" [%s]' % (sensor_name, id(task))
-        )
+        self.logger.debug('Start task for sensor "%s" [%s]', sensor_name, id(task))
         task.start()
 
     def _stop_sensor_task(self, sensor):
@@ -576,16 +577,16 @@ class Sensors(CleepModule):
         """
         # search for task
         task = None
-        for device_uuid in self._tasks_by_device_uuid:
+        for (device_uuid, device_task) in self._tasks_by_device_uuid.items():
             if device_uuid == sensor["uuid"]:
-                task = self._tasks_by_device_uuid[device_uuid]
+                task = device_task
                 break
         if task is None:
-            self.logger.warning('Sensor "%s" has no task running' % sensor["name"])
+            self.logger.warning('Sensor "%s" has no task running', sensor["name"])
             return
 
         # stop task
-        self.logger.debug('Stop task for sensor "%s" [%s]' % (sensor["name"], id(task)))
+        self.logger.debug('Stop task for sensor "%s" [%s]', sensor["name"], id(task))
         task.stop()
 
         # purge not running task

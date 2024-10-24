@@ -27,15 +27,19 @@ class SensorMotionGeneric(Sensor):
         self.sensors_motion_on = self._get_event("sensors.motion.on")
         self.sensors_motion_off = self._get_event("sensors.motion.off")
 
-    def add(self, name, gpio, inverted):
+    def add(self, params):
         """
         Return sensor data to add.
         Can perform specific stuff
 
         Args:
-            name (string): sensor name
-            gpio (string): used gpio
-            inverted (bool): True if gpio is inverted
+            params (dict): add params::
+
+                {
+                    name (str): sensor name
+                    gpio (str): used gpio
+                    inverted (bool): True if gpio is inverted
+                }
 
         Returns:
             dict: sensor data to add::
@@ -53,48 +57,47 @@ class SensorMotionGeneric(Sensor):
         self._check_parameters([
             {
                 'name': 'name',
-                'value': name,
+                'value': params.name,
                 'type': str,
-                'validator': lambda val: self._search_device("name", name) is None,
-                'message': 'Name "%s" is already used' % name,
+                'validator': lambda val: self._search_device("name", params.name) is None,
+                'message': f'Name "{params.name}" is already used',
             },
             {
                 'name': 'gpio',
-                'value': gpio,
+                'value': params.gpio,
                 'type': str,
-                'validator': lambda val: gpio not in assigned_gpios,
-                'message': 'Gpio "%s" is already used' % gpio,
+                'validator': lambda val: params.gpio not in assigned_gpios,
+                'message': f'Gpio "{params.gpio}" is already used',
             },
-            {'name': 'inverted', 'value': inverted, 'type': bool},
+            {'name': 'inverted', 'value': params.inverted, 'type': bool},
         ])
-        # TODO add new validator in cleep v0.0.27
-        if gpio not in self.raspi_gpios:
-            raise InvalidParameter(
-                'Gpio "%s" does not exist for this raspberry pi' % gpio
-            )
+        # TODO add new validator directly in Cleep core
+        self.logger.debug('Gpios: %s', self.raspi_gpios)
+        if params.gpio not in self.raspi_gpios:
+            raise InvalidParameter(f'Gpio "{params.gpio}" does not exist for this raspberry pi')
 
         # configure gpio
         gpio_data = {
-            "name": name + "_motion",
-            "gpio": gpio,
+            "name": params.name + "_motion",
+            "gpio": params.gpio,
             "mode": "input",
             "keep": False,
-            "inverted": inverted,
+            "inverted": params.inverted,
         }
 
         sensor_data = {
-            "name": name,
+            "name": params.name,
             "gpios": [],
             "type": self.TYPE_MOTION,
             "subtype": self.SUBTYPE,
             "on": False,
-            "inverted": inverted,
+            "inverted": params.inverted,
             "lastupdate": 0,
             "lastduration": 0,
         }
 
         # read current gpio value
-        resp = self.send_command("is_gpio_on", "gpios", {"gpio": gpio})
+        resp = self.send_command("is_gpio_on", "gpios", {"gpio": params.gpio})
         if not resp.error:
             sensor_data["on"] = resp.data
         sensor_data["lastupdate"] = int(time.time())
@@ -108,15 +111,19 @@ class SensorMotionGeneric(Sensor):
             ],
         }
 
-    def update(self, sensor, name, inverted):
+    def update(self, sensor, params):
         """
         Returns sensor data to update
         Can perform specific stuff
 
         Args:
             sensor (dict): sensor data
-            name (string): sensor name
-            inverted (bool): True if gpio is inverted
+            params (dict): update params::
+
+                {
+                    name (str): sensor name
+                    inverted (bool): True if gpio is inverted
+                }
 
         Returns:
             dict: sensor data to update::
@@ -128,8 +135,6 @@ class SensorMotionGeneric(Sensor):
 
         """
         # check values
-        if sensor:
-            self.logger.debug('=====> %s' % self._search_device("uuid", sensor["uuid"]))
         self._check_parameters([
             {
                 'name': 'sensor',
@@ -140,24 +145,24 @@ class SensorMotionGeneric(Sensor):
             },
             {
                 'name': 'name',
-                'value': name,
+                'value': params.name,
                 'type': str,
-                'validator': lambda val: val == sensor['name'] or self._search_device("name", name) is None,
-                'message': 'Name "%s" is already used' % name,
+                'validator': lambda val: val == sensor['name'] or self._search_device("name", params.name) is None,
+                'message': f'Name "{params.name}" is already used',
             },
-            {'name': 'inverted', 'value': inverted, 'type': bool},
+            {'name': 'inverted', 'value': params.inverted, 'type': bool},
         ])
 
         gpio_data = {
             "uuid": sensor["gpios"][0]["uuid"],
-            "name": name + "_motion",
+            "name": params.name + "_motion",
             "keep": False,
-            "inverted": inverted,
+            "inverted": params.inverted,
         }
 
         # update sensor
-        sensor["name"] = name
-        sensor["inverted"] = inverted
+        sensor["name"] = params.name
+        sensor["inverted"] = params.inverted
 
         return {
             "gpios": [
@@ -181,7 +186,7 @@ class SensorMotionGeneric(Sensor):
 
         if event["event"] == "gpios.gpio.on" and not sensor["on"]:
             # sensor not yet triggered, trigger it
-            self.logger.debug('Motion sensor "%s" turned on' % sensor["name"])
+            self.logger.debug('Motion sensor "%s" turned on', sensor["name"])
 
             # motion sensor triggered
             sensor["lastupdate"] = now
@@ -196,7 +201,7 @@ class SensorMotionGeneric(Sensor):
 
         elif event["event"] == "gpios.gpio.off" and sensor["on"]:
             # sensor is triggered, need to stop it
-            self.logger.debug('Motion sensor "%s" turned off' % sensor["name"])
+            self.logger.debug('Motion sensor "%s" turned off', sensor["name"])
 
             # motion sensor triggered
             sensor["lastupdate"] = now

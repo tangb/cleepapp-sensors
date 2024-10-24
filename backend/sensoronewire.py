@@ -5,7 +5,6 @@ import os
 import glob
 import time
 from cleep.exception import CommandError
-from cleep.libs.internals.task import Task
 from .sensor import Sensor
 from .sensorsutils import SensorsUtils
 from .onewiredriver import OnewireDriver
@@ -42,18 +41,22 @@ class SensorOnewire(Sensor):
         self.onewire_driver = OnewireDriver()
         self._register_driver(self.onewire_driver)
 
-    def add(self, name, device, path, interval, offset, offset_unit):
+    def add(self, params):
         """
         Return sensor data to add.
         Can perform specific stuff
 
         Args:
-            name (str): sensor name
-            device (str): onewire device
-            path (str): onewire path
-            interval (int): interval
-            offset (int): offset
-            offset_unit (str): offset unit
+            params (dict): add params::
+
+                {
+                    name (str): sensor name
+                    device (str): onewire device
+                    path (str): onewire path
+                    interval (int): interval
+                    offset (int): offset
+                    offset_unit (str): offset unit
+                }
 
         Returns:
             dict: sensor data to add::
@@ -68,36 +71,36 @@ class SensorOnewire(Sensor):
         self._check_parameters([
             {
                 "name": "name",
-                "value": name,
+                "value": params.name,
                 "type": str,
                 "validator": lambda val: self._search_device("name", val) is None,
-                "message": 'Name "%s" is already used' % name,
+                "message": f'Name "{params.name}" is already used',
             },
             {
                 "name": "device",
-                "value": device,
+                "value": params.device,
                 "type": str,
             },
             {
                 "name": "path",
-                "value": path,
+                "value": params.path,
                 "type": str,
             },
             {
                 "name": "interval",
-                "value": interval,
+                "value": params.interval,
                 "type": int,
                 "validator": lambda val: val >= 60,
                 "message": "Interval must be greater or equal than 60",
             },
             {
                 "name": "offset",
-                "value": offset,
+                "value": params.offset,
                 "type": int
             },
             {
                 "name": "offset_unit",
-                "value": offset_unit,
+                "value": params.offset_unit,
                 "type": str,
                 "validator": lambda val: val in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
                 "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
@@ -108,12 +111,12 @@ class SensorOnewire(Sensor):
         gpio_resp = self.sensors.send_command(
             "get_reserved_gpio", "gpios", {"usage": self.USAGE_ONEWIRE}
         )
-        self.logger.debug("Get reserved gpio resp: %s" % gpio_resp)
+        self.logger.debug("Get reserved gpio resp: %s", gpio_resp)
         gpio_device = gpio_resp.data
 
         # prepare sensor
         sensor_data = {
-            "name": name,
+            "name": params.name,
             "gpios": [
                 {
                     "gpio": gpio_device["gpio"],
@@ -121,13 +124,13 @@ class SensorOnewire(Sensor):
                     "pin": gpio_device["pin"],
                 }
             ],
-            "device": device,
-            "path": path,
+            "device": params.device,
+            "path": params.path,
             "type": self.TYPE_TEMPERATURE,
             "subtype": self.SUBTYPE,
-            "interval": interval,
-            "offset": offset,
-            "offsetunit": offset_unit,
+            "interval": params.interval,
+            "offset": params.offset,
+            "offsetunit": params.offset_unit,
             "lastupdate": int(time.time()),
             "celsius": None,
             "fahrenheit": None,
@@ -145,17 +148,21 @@ class SensorOnewire(Sensor):
             ],
         }
 
-    def update(self, sensor, name, interval, offset, offset_unit):
+    def update(self, sensor, params):
         """
         Returns sensor data to update
         Can perform specific stuff
 
         Args:
             sensor (dict): sensor data
-            name (string): new sensor name
-            interval (int): new interval
-            offset (int): new offset
-            offset_unit (string): new offset unit
+            params (dict): update params::
+
+                {
+                    name (str): new sensor name
+                    interval (int): new interval
+                    offset (int): new offset
+                    offset_unit (str): new offset unit
+                }
 
         Returns:
             dict: sensor data to update::
@@ -176,26 +183,26 @@ class SensorOnewire(Sensor):
             },
             {
                 "name": "name",
-                "value": name,
+                "value": params.name,
                 "type": str,
                 "validator": lambda val: val == sensor["name"] or self._search_device("name", val) is None,
-                "message": 'Name "%s" is already used' % name,
+                "message": f'Name "{params.name}" is already used',
             },
             {
                 "name": "interval",
-                "value": interval,
+                "value": params.interval,
                 "type": int,
                 "validator": lambda val: val >= 60,
                 "message": "Interval must be greater or equal than 60",
             },
             {
                 "name": "offset",
-                "value": offset,
+                "value": params.offset,
                 "type": int
             },
             {
                 "name": "offset_unit",
-                "value": offset_unit,
+                "value": params.offset_unit,
                 "type": str,
                 "validator": lambda val: val in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
                 "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
@@ -203,10 +210,10 @@ class SensorOnewire(Sensor):
         ])
 
         # update sensor
-        sensor["name"] = name
-        sensor["interval"] = interval
-        sensor["offset"] = offset
-        sensor["offsetunit"] = offset_unit
+        sensor["name"] = params.name
+        sensor["interval"] = params.interval
+        sensor["offset"] = params.offset
+        sensor["offsetunit"] = params.offset_unit
 
         return {
             "gpios": [],
@@ -234,7 +241,7 @@ class SensorOnewire(Sensor):
             raise CommandError("Onewire driver is not installed")
 
         devices = glob.glob(os.path.join(self.ONEWIRE_PATH, "28*"))
-        self.logger.debug("Onewire devices: %s" % devices)
+        self.logger.debug("Onewire devices: %s", devices)
         for device in devices:
             onewires.append(
                 {
@@ -266,7 +273,7 @@ class SensorOnewire(Sensor):
                 "usage": self.USAGE_ONEWIRE,
             }
             resp = self.sensors.send_command("reserve_gpio", "gpios", params)
-            self.logger.debug("Reserve gpio result: %s" % resp)
+            self.logger.debug("Reserve gpio result: %s", resp)
 
         elif (
             event["event"] == "system.driver.uninstall"
@@ -278,13 +285,13 @@ class SensorOnewire(Sensor):
             resp = self.sensors.send_command(
                 "get_reserved_gpios", "gpios", {"usage": self.USAGE_ONEWIRE}
             )
-            self.logger.debug("Get_reserved_gpios response: %s" % resp)
+            self.logger.debug("Get_reserved_gpios response: %s", resp)
             if not resp.error and resp.data and len(resp.data) > 0:
                 sensor = resp.data[0]
                 resp = self.sensors.send_command(
                     "delete_gpio", "gpios", {"uuid": sensor["uuid"]}
                 )
-                self.logger.debug("Delete gpio result: %s" % resp)
+                self.logger.debug("Delete gpio result: %s", resp)
 
     def _read_onewire_temperature(self, sensor):
         """
@@ -315,7 +322,7 @@ class SensorOnewire(Sensor):
                     # check value
                     if temp_str in ("85000", "-62"):
                         # invalid value
-                        raise Exception('Invalid temperature "%s"' % temp_str)
+                        raise ValueError(f'Invalid temperature "{temp_str}"')
 
                     # convert temperatures
                     temp_c = float(temp_str) / 1000.0
@@ -325,17 +332,18 @@ class SensorOnewire(Sensor):
 
                 else:
                     # no temperature found in file
-                    raise Exception(
-                        'No temperature found for onewire "%s"' % sensor["path"]
-                    )
+                    sensor_path = sensor["path"]
+                    raise ValueError(f'No temperature found for onewire "{sensor_path}"')
 
             else:
                 # onewire device doesn't exist
-                raise Exception('Onewire device "%s" doesn\'t exist' % sensor["path"])
+                sensor_path = sensor["path"]
+                raise ValueError(f'Onewire device "{sensor_path}" doesn\'t exist')
 
         except Exception:
+            sensor_path = sensor["path"]
             self.logger.exception(
-                'Unable to read 1wire device file "%s":' % sensor["path"]
+                f'Unable to read 1wire device file "{sensor_path}":'
             )
 
         return (temp_c, temp_f)
@@ -355,7 +363,7 @@ class SensorOnewire(Sensor):
         sensor["fahrenheit"] = temp_f
         sensor["lastupdate"] = int(time.time())
         if not self.update_value(sensor):
-            self.logger.error("Unable to update onewire device %s" % sensor["uuid"])
+            self.logger.error("Unable to update onewire device %s", sensor["uuid"])
 
         # and send event
         params = {
@@ -373,5 +381,9 @@ class SensorOnewire(Sensor):
         Args:
             sensor (dict): sensor data
         """
-        return Task(float(sensor["interval"]), self._task, self.logger, [sensor])
+        return self.task_factory.create_task(
+            float(sensor["interval"]),
+            self._task,
+            [sensor]
+        )
 

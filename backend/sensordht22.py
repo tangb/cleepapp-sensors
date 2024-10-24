@@ -5,9 +5,9 @@ import json
 import time
 from cleep.exception import InvalidParameter
 from cleep.libs.internals.console import Console
-from cleep.libs.internals.task import Task
 from .sensor import Sensor
 from .sensorsutils import SensorsUtils
+
 
 class SensorDht22(Sensor):
     """
@@ -56,17 +56,21 @@ class SensorDht22(Sensor):
 
         return (temperature_device, humidity_device)
 
-    def add(self, name, gpio, interval, offset, offset_unit):
+    def add(self, params):
         """
         Return sensor data to add.
         Can perform specific stuff
 
         Args:
-            name (string): sensor name
-            gpio (string): gpio name
-            interval (int): interval value
-            offset (int): offset value
-            offset_unit (string): offset unit
+            params (dict): sensor params::
+
+                {
+                    name (str): sensor name
+                    gpio (str): gpio name
+                    interval (int): interval value
+                    offset (int): offset value
+                    offset_unit (str): offset unit
+                }
 
         Returns:
             dict: sensor data to add::
@@ -81,74 +85,77 @@ class SensorDht22(Sensor):
         assigned_gpios = self._get_assigned_gpios()
 
         # check parameters
-        self._check_parameters([
-            {
-                "name": "name",
-                "value": name,
-                "type": str,
-                "validator": lambda val: self._search_device("name", val) is None,
-                "message": 'Name "%s" is already used' % name,
-            },
-            {
-                "name": "gpio",
-                "value": gpio,
-                "type": str,
-                "validator": lambda val: gpio not in assigned_gpios,
-                "message": 'Gpio "%s" is already used' % gpio,
-            },
-            {
-                "name": "interval",
-                "value": interval,
-                "type": int,
-                "validator": lambda val: val >= 60,
-                "message": "Interval must be greater or equal than 60",
-            },
-            {
-                "name": "offset",
-                "value": offset,
-                "type": int,
-            },
-            {
-                "name": "offset_unit",
-                "value": offset_unit,
-                "type": str,
-                "validator": lambda val: val in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
-                "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
-            },
-        ])
-        # TODO add new validator in cleep v0.0.27
-        if gpio not in self.raspi_gpios:
+        self._check_parameters(
+            [
+                {
+                    "name": "name",
+                    "value": params.name,
+                    "type": str,
+                    "validator": lambda val: self._search_device("name", val) is None,
+                    "message": f'Name "{params.name}" is already used',
+                },
+                {
+                    "name": "gpio",
+                    "value": params.gpio,
+                    "type": str,
+                    "validator": lambda val: params.gpio not in assigned_gpios,
+                    "message": f'Gpio "{params.gpio}" is already used',
+                },
+                {
+                    "name": "interval",
+                    "value": params.interval,
+                    "type": int,
+                    "validator": lambda val: val >= 60,
+                    "message": "Interval must be greater or equal than 60",
+                },
+                {
+                    "name": "offset",
+                    "value": params.offset,
+                    "type": int,
+                },
+                {
+                    "name": "offset_unit",
+                    "value": params.offset_unit,
+                    "type": str,
+                    "validator": lambda val: val
+                    in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
+                    "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
+                },
+            ]
+        )
+        # TODO add new validator in Cleep core
+        if params.gpio not in self.raspi_gpios:
             raise InvalidParameter(
-                'Gpio "%s" does not exist for this raspberry pi' % gpio
+                f'Gpio "{params.gpio}" does not exist for this raspberry pi'
             )
 
         gpio_data = {
-            "name": name + "_dht22",
-            "gpio": gpio,
+            "name": params.name + "_dht22",
+            "gpio": params.gpio,
             "mode": "input",
             "keep": False,
             "inverted": False,
         }
 
         temperature_data = {
-            "name": name,
+            "name": params.name,
             "gpios": [],
             "type": self.TYPE_TEMPERATURE,
             "subtype": self.SUBTYPE,
-            "interval": interval,
-            "offset": offset,
-            "offsetunit": offset_unit,
+            "interval": params.interval,
+            "offset": params.offset,
+            "offsetunit": params.offset_unit,
             "lastupdate": int(time.time()),
             "celsius": None,
             "fahrenheit": None,
         }
 
         humidity_data = {
-            "name": name,
+            "name": params.name,
             "gpios": [],
             "type": self.TYPE_HUMIDITY,
             "subtype": self.SUBTYPE,
-            "interval": interval,
+            "interval": params.interval,
             "lastupdate": int(time.time()),
             "humidity": None,
         }
@@ -163,17 +170,21 @@ class SensorDht22(Sensor):
             ],
         }
 
-    def update(self, sensor, name, interval, offset, offset_unit):
+    def update(self, sensor, params):
         """
         Returns sensor data to update
         Can perform specific stuff
 
         Args:
             sensor (dict): sensor data
-            name (string): sensor name
-            interval (int): interval value
-            offset (int): offset value
-            offset_unit (string): offset unit
+            params (dict): update params::
+
+                {
+                    name (str): sensor name
+                    interval (int): interval value
+                    offset (int): offset value
+                    offset_unit (str): offset unit
+                }
 
         Returns:
             dict: sensor data to update::
@@ -185,39 +196,43 @@ class SensorDht22(Sensor):
 
         """
         # check parameters
-        self._check_parameters([
-            {
-                "name": "sensor",
-                "value": sensor,
-                "type": dict,
-            },
-            {
-                "name": "name",
-                "value": name,
-                "type": str,
-                "validator": lambda val: sensor["name"] == val or self._search_device("name", val) is None,
-                "message": 'Name "%s" is already used' % name,
-            },
-            {
-                "name": "interval",
-                "value": interval,
-                "type": int,
-                "validator": lambda val: val >= 60,
-                "message": "Interval must be greater or equal than 60",
-            },
-            {
-                "name": "offset",
-                "value": offset,
-                "type": int,
-            },
-            {
-                "name": "offset_unit",
-                "value": offset_unit,
-                "type": str,
-                "validator": lambda val: val in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
-                "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
-            },
-        ])
+        self._check_parameters(
+            [
+                {
+                    "name": "sensor",
+                    "value": sensor,
+                    "type": dict,
+                },
+                {
+                    "name": "name",
+                    "value": params.name,
+                    "type": str,
+                    "validator": lambda val: sensor["name"] == val
+                    or self._search_device("name", val) is None,
+                    "message": f'Name "{params.name}" is already used',
+                },
+                {
+                    "name": "interval",
+                    "value": params.interval,
+                    "type": int,
+                    "validator": lambda val: val >= 60,
+                    "message": "Interval must be greater or equal than 60",
+                },
+                {
+                    "name": "offset",
+                    "value": params.offset,
+                    "type": int,
+                },
+                {
+                    "name": "offset_unit",
+                    "value": params.offset_unit,
+                    "type": str,
+                    "validator": lambda val: val
+                    in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
+                    "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
+                },
+            ]
+        )
 
         # search all sensors with same name
         old_name = sensor["name"]
@@ -225,11 +240,11 @@ class SensorDht22(Sensor):
 
         # reconfigure gpio
         gpios = []
-        if old_name != name:
+        if old_name != params.name:
             gpios.append(
                 {
                     "uuid": (temperature_device or humidity_device)["gpios"][0]["uuid"],
-                    "name": name + "_dht22",
+                    "name": params.name + "_dht22",
                     "mode": "input",
                     "keep": False,
                     "inverted": False,
@@ -239,16 +254,16 @@ class SensorDht22(Sensor):
         # temperature sensor
         sensors = []
         if temperature_device:
-            temperature_device["name"] = name
-            temperature_device["interval"] = interval
-            temperature_device["offset"] = offset
-            temperature_device["offsetunit"] = offset_unit
+            temperature_device["name"] = params.name
+            temperature_device["interval"] = params.interval
+            temperature_device["offset"] = params.offset
+            temperature_device["offsetunit"] = params.offset_unit
             sensors.append(temperature_device)
 
         # humidity sensor
         if humidity_device:
-            humidity_device["name"] = name
-            humidity_device["interval"] = interval
+            humidity_device["name"] = params.name
+            humidity_device["interval"] = params.interval
             sensors.append(humidity_device)
 
         return {
@@ -271,9 +286,7 @@ class SensorDht22(Sensor):
 
         """
         # check params
-        self._check_parameters([
-            {'name': 'sensor', 'value': sensor, 'type': dict}
-        ])
+        self._check_parameters([{"name": "sensor", "value": sensor, "type": dict}])
 
         # search all sensors with same name
         (temperature_device, humidity_device) = self._get_dht22_devices(sensor["name"])
@@ -302,13 +315,13 @@ class SensorDht22(Sensor):
         """
         console = Console()
         cmd = self.DHT22_CMD % sensor["gpios"][0]["pin"]
-        self.logger.debug('Read DHT22 sensor values from command "%s"' % cmd)
+        self.logger.debug('Read DHT22 sensor values from command "%s"', cmd)
         resp = console.command(cmd, timeout=11)
-        self.logger.debug("Read DHT command response: %s" % resp)
-        if resp['error'] or resp['killed']:
-            self.logger.error("DHT22 command failed: %s" % resp)
+        self.logger.debug("Read DHT command response: %s", resp)
+        if resp["error"] or resp["killed"]:
+            self.logger.error("DHT22 command failed: %s", resp)
 
-        return json.loads(resp['stdout'][0])
+        return json.loads(resp["stdout"][0])
 
     def _read_dht22(self, sensor):
         """
@@ -331,9 +344,9 @@ class SensorDht22(Sensor):
             # check read errors
             if len(data["error"]) > 0:
                 self.logger.error(
-                    "Error occured during DHT22 command execution: %s" % data["error"]
+                    "Error occured during DHT22 command execution: %s", data["error"]
                 )
-                raise Exception("DHT22 command failed")
+                raise RuntimeError("DHT22 command failed")
 
             # get DHT22 values
             (temp_c, temp_f) = SensorsUtils.convert_temperatures_from_celsius(
@@ -341,7 +354,7 @@ class SensorDht22(Sensor):
             )
             hum_p = data["humidity"]
             self.logger.info(
-                "Read values from DHT22: %s°C, %s°F, %s%%" % (temp_c, temp_f, hum_p)
+                "Read values from DHT22: %s°C, %s°F, %s%%", temp_c, temp_f, hum_p
             )
 
         except Exception:
@@ -358,7 +371,9 @@ class SensorDht22(Sensor):
             humidity_device (dict): humidity sensor
         """
         # read values
-        (temp_c, temp_f, hum_p) = self._read_dht22((temperature_device or humidity_device))
+        (temp_c, temp_f, hum_p) = self._read_dht22(
+            (temperature_device or humidity_device)
+        )
 
         now = int(time.time())
         if temperature_device and temp_c is not None and temp_f is not None:
@@ -411,9 +426,6 @@ class SensorDht22(Sensor):
         # search all sensors with same name
         (temperature_device, humidity_device) = self._get_dht22_devices(sensor["name"])
 
-        return Task(
-            float(sensor["interval"]),
-            self._task,
-            self.logger,
-            [temperature_device, humidity_device],
+        return self.task_factory.create_task(
+            float(sensor["interval"]), self._task, [temperature_device, humidity_device]
         )
