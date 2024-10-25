@@ -1,16 +1,24 @@
 # Changelog
 
-## [UNRELEASED] - xxx
-### Changed
-- Migrate to Cleep components
+## [1.2.0] - 2024-10-25
 
-## v1.1.0 - 2021-05-24
 ### Changed
+
+- Migrate to Cleep components
+- Use task_factory
+- Improve code quality
+
+
+## [1.1.0] - 2021-05-24
+
+### Changed
+
 - Migration to python3
 - Update after core changes
 - Update after gpios changes
 - Improve code quality and confidence
 
-## v1.0.0 - 2019-12-30
+## [1.0.0] - 2019-12-30
+
 - First release
 
