@@ -35,25 +35,25 @@ class FakeSensor(Sensor):
     def injected_method(self):
         pass
 
-    def update(self, sensor, name):
+    def update(self, sensor, params):
         self.update_call += 1
         gpio = {
-            'name': name + '_fake',
+            'name': params.get("name") + '_fake',
         }
-        sensor['name'] = name
+        sensor['name'] = params.get("name")
         return {
             'gpios': [gpio,],
             'sensors': [sensor,],
         }
 
-    def add(self, name, gpio):
+    def add(self, params):
         self.add_call += 1
         gpio = {
-            'name': name + '_fake',
-            'gpio': gpio,
+            'name': params.get("name") + '_fake',
+            'gpio': params.get("gpio"),
         }
         sensor = {
-            'name': name,
+            'name': params.get("name"),
             'type': 'test',
             'subtype': 'fake',
         }
@@ -1263,7 +1263,8 @@ class OnewireSensorTests(unittest.TestCase):
         addon = self.get_addon()
         addon._read_onewire_temperature = Mock(return_value=(20, 68))
 
-        res = addon.add('name', 'device', 'path', 120, 0, SensorsUtils.TEMP_CELSIUS)
+        res = addon.add({"name": 'name', "device": 'device', "path": 'path', "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
+
         self.assertTrue('gpios' in res, 'Gpios should be part of result')
         self.assertEqual(len(res['gpios']), 0, 'Gpios should not contains one value')
         self.assertTrue('sensors' in res, 'Sensors should be part of result')
@@ -1296,50 +1297,50 @@ class OnewireSensorTests(unittest.TestCase):
         default_search_device = addon._search_device
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add(None, 'device', 'path', 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": None, "device": 'device', "path": 'path', "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "name" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('', 'device', 'path', 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": '', "device": 'device', "path": 'path', "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "name" is invalid (specified="")')
         addon._search_device = lambda k,v: {'name': 'name'}
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'device', 'path', 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "device": 'device', "path": 'path', "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Name "name" is already used')
         addon._search_device = default_search_device
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add('name', None, 'path', 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "device": None, "path": 'path', "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "device" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', '', 'path', 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "device": '', "path": 'path', "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "device" is invalid (specified="")')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add('name', 'device', None, 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "device": 'device', "path": None, "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "path" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'device', '', 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "device": 'device', "path": '', "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "path" is invalid (specified="")')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add('name', 'device', 'path', None, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "device": 'device', "path": 'path', "interval": None, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "interval" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'device', 'path', 59, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "device": 'device', "path": 'path', "interval": 59, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Interval must be greater or equal than 60')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add('name', 'device', 'path', 120, None, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "device": 'device', "path": 'path', "interval": 120, "offset": None, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "offset" is missing')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add('name', 'device', 'path', 120, 0, None)
+            addon.add({"name": 'name', "device": 'device', "path": 'path', "interval": 120, "offset": 0, "offset_unit": None})
         self.assertEqual(cm.exception.message, 'Parameter "offset_unit" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'device', 'path', 120, 0, '')
+            addon.add({"name": 'name', "device": 'device', "path": 'path', "interval": 120, "offset": 0, "offset_unit": ''})
         self.assertEqual(cm.exception.message, 'Parameter "offset_unit" is invalid (specified="")')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'device', 'path', 120, 0, 'test')
+            addon.add({"name": 'name', "device": 'device', "path": 'path', "interval": 120, "offset": 0, "offset_unit": 'test'})
         self.assertEqual(cm.exception.message, 'Offset_unit value must be either "celsius" or "fahrenheit"')
 
     def test_update(self):
@@ -1364,7 +1365,7 @@ class OnewireSensorTests(unittest.TestCase):
             return None
         addon._search_device = search_device_found_by_uuid
 
-        res = addon.update(sensor, 'newname', 180, 5, SensorsUtils.TEMP_FAHRENHEIT)
+        res = addon.update(sensor, {"name": 'newname', "interval": 180, "offset": 5, "offset_unit": SensorsUtils.TEMP_FAHRENHEIT})
         self.assertTrue('gpios' in res, 'Gpios should be part of result')
         self.assertEqual(len(res['gpios']), 0, 'Gpios should not contains one value')
         self.assertTrue('sensors' in res, 'Sensors should be part of result')
@@ -1417,44 +1418,44 @@ class OnewireSensorTests(unittest.TestCase):
             return None
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(None, 'name', 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(None, {"name": "name", "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "sensor" is missing')
         addon._search_device = lambda k,v: None
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(sensor, 'name', 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(sensor, {"name": "name", "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Sensor does not exist')
 
         addon._search_device = search_device_found_by_uuid
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(sensor, None, 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(sensor, {"name": None, "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "name" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(sensor, '', 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(sensor, {"name": "", "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "name" is invalid (specified="")')
         addon._search_device = lambda k,v: {'name': 'name'}
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(sensor, 'newname', 120, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(sensor, {"name": "newname", "interval": 120, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Name "newname" is already used')
         
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(sensor, 'name', None, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(sensor, {"name": "name", "interval": None, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "interval" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(sensor, 'name', 30, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(sensor, {"name": "name", "interval": 30, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Interval must be greater or equal than 60')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(sensor, 'name', 120, None, SensorsUtils.TEMP_CELSIUS)
+            addon.update(sensor, {"name": "name", "interval": 120, "offset": None, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "offset" is missing')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(sensor, 'name', 120, 0, None)
+            addon.update(sensor, {"name": "name", "interval": 120, "offset": 0, "offset_unit": None})
         self.assertEqual(cm.exception.message, 'Parameter "offset_unit" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(sensor, 'name', 120, 0, '')
+            addon.update(sensor, {"name": "name", "interval": 120, "offset": 0, "offset_unit": ""})
         self.assertEqual(cm.exception.message, 'Parameter "offset_unit" is invalid (specified="")')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(sensor, 'name', 120, 0, 'invalid')
+            addon.update(sensor, {"name": "name", "interval": 120, "offset": 0, "offset_unit": "invalid"})
         self.assertEqual(cm.exception.message, 'Offset_unit value must be either "celsius" or "fahrenheit"')
 
     def test_task(self):
@@ -1679,7 +1680,7 @@ class MotionGenericSensorTests(unittest.TestCase):
         }))
         addon = self.get_addon()
 
-        res = addon.add('name', 'GPIO18', False)
+        res = addon.add({"name": 'name', "gpio": 'GPIO18', "inverted": False})
 
         self.assertTrue('gpios' in res, 'Gpios should be part of result')
         self.assertEqual(len(res['gpios']), 1, 'Gpios should contains value')
@@ -1712,7 +1713,7 @@ class MotionGenericSensorTests(unittest.TestCase):
         self.session.set_mock_command_fail('is_gpio_on')
         addon = self.get_addon()
 
-        addon.add('name', 'GPIO18', False)
+        addon.add({"name": 'name', "gpio": 'GPIO18', "inverted": False})
 
         self.assertEqual(self.session.command_call_count('is_gpio_on'), 1, 'Command is_gpio_on should be called')
 
@@ -1722,34 +1723,34 @@ class MotionGenericSensorTests(unittest.TestCase):
         default_get_assigned_gpios = addon._get_assigned_gpios
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add(None, 'GPIO18', False)
+            addon.add({"name": None, "gpio": 'GPIO18', "inverted": False})
         self.assertEqual(cm.exception.message, 'Parameter "name" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('', 'GPIO18', False)
+            addon.add({"name": '', "gpio": 'GPIO18', "inverted": False})
         self.assertEqual(cm.exception.message, 'Parameter "name" is invalid (specified="")')
         addon._search_device = lambda k,v: {'name': 'name'}
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'GPIO18', False)
+            addon.add({"name": 'name', "gpio": 'GPIO18', "inverted": False})
         self.assertEqual(cm.exception.message, 'Name "name" is already used')
         addon._search_device = default_search_device
         addon._get_assigned_gpios = lambda: ['GPIO18']
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'GPIO18', False)
+            addon.add({"name": 'name', "gpio": 'GPIO18', "inverted": False})
         self.assertEqual(cm.exception.message, 'Gpio "GPIO18" is already used')
         addon._get_assigned_gpios = default_get_assigned_gpios
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add('name', None, False)
+            addon.add({"name": 'name', "gpio": None, "inverted": False})
         self.assertEqual(cm.exception.message, 'Parameter "gpio" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', '', False)
+            addon.add({"name": 'name', "gpio": '', "inverted": False})
         self.assertEqual(cm.exception.message, 'Parameter "gpio" is invalid (specified="")')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'GPIO666', False)
+            addon.add({"name": 'name', "gpio": 'GPIO666', "inverted": False})
         self.assertEqual(cm.exception.message, 'Gpio "GPIO666" does not exist for this raspberry pi')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add('name', 'GPIO18', None)
+            addon.add({"name": 'name', "gpio": 'GPIO18', "inverted": None})
         self.assertEqual(cm.exception.message, 'Parameter "inverted" is missing')
 
     def test_update(self):
@@ -1771,7 +1772,8 @@ class MotionGenericSensorTests(unittest.TestCase):
             return None
         addon._search_device = search_device_found_by_uuid
 
-        res = addon.update(sensor, 'newname', True)
+        res = addon.update(sensor, {"name": "newname", "inverted": True})
+
         self.assertTrue('gpios' in res, 'Gpios should be part of result')
         self.assertEqual(len(res['gpios']), 1, 'Gpios should contains value')
         self.assertTrue('sensors' in res, 'Sensors should be part of result')
@@ -1813,31 +1815,31 @@ class MotionGenericSensorTests(unittest.TestCase):
             return {'name': 'name'}
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(None, 'name', False)
+            addon.update(None, {"name": "name", "inverted": False})
         self.assertEqual(cm.exception.message, 'Parameter "sensor" is missing')
 
         addon._search_device = Mock(return_value=sensor)
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(sensor, None, False)
+            addon.update(sensor, {"name": None, "inverted": False})
         self.assertEqual(cm.exception.message, 'Parameter "name" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(sensor, '', False)
+            addon.update(sensor, {"name": "", "inverted": False})
         self.assertEqual(cm.exception.message, 'Parameter "name" is invalid (specified="")')
         addon._search_device = Mock(return_value={'name': 'name'})
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(sensor, 'newname', False)
+            addon.update(sensor, {"name": "newname", "inverted": False})
         self.assertEqual(cm.exception.message, 'Name "newname" is already used')
         addon._search_device = default_search_device
 
         addon._search_device = search_device_not_found_by_uuid
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(sensor, 'name', False)
+            addon.update(sensor, {"name": "name", "inverted": False})
         self.assertEqual(cm.exception.message, 'Sensor does not exist')
         addon._search_device = default_search_device
 
         addon._search_device = Mock(return_value=sensor)
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(sensor, 'name', None)
+            addon.update(sensor, {"name": "name", "inverted": None})
         self.assertEqual(cm.exception.message, 'Parameter "inverted" is missing')
 
     def test_get_task(self):
@@ -2095,7 +2097,8 @@ class Dht22SensorTests(unittest.TestCase):
         }))
         addon = self.get_addon()
 
-        res = addon.add('name', 'GPIO18', 100, 0, SensorsUtils.TEMP_CELSIUS)
+        res = addon.add({"name": "name", "gpio": "GPIO18", "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
+
         self.assertTrue('gpios' in res, 'Gpios should be part of result')
         self.assertEqual(len(res['gpios']), 1, 'Gpios should contains value')
         self.assertTrue('sensors' in res, 'Sensors should be part of result')
@@ -2142,51 +2145,51 @@ class Dht22SensorTests(unittest.TestCase):
         default_get_assigned_gpios = addon._get_assigned_gpios
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add(None, 'GPIO18', 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": None, "gpio": 'GPIO18', "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "name" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('', 'GPIO18', 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": "", "gpio": 'GPIO18', "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "name" is invalid (specified="")')
         addon._search_device = Mock(return_value={'name': 'name'})
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'GPIO18', 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "gpio": 'GPIO18', "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Name "name" is already used')
         addon._search_device = default_search_device
 
         addon._get_assigned_gpios = Mock(return_value=['GPIO18'])
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'GPIO18', 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "gpio": 'GPIO18', "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Gpio "GPIO18" is already used')
         addon._get_assigned_gpios = default_get_assigned_gpios
         with self.assertRaises(MissingParameter) as cm:
-            addon.add('name', None, 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "gpio": None, "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "gpio" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', '', 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "gpio": '', "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "gpio" is invalid (specified="")')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'GPIO666', 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "gpio": 'GPIO666', "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Gpio "GPIO666" does not exist for this raspberry pi')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add('name', 'GPIO18', None, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "gpio": 'GPIO18', "interval": None, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "interval" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'GPIO18', 59, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "gpio": 'GPIO18', "interval": 59, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Interval must be greater or equal than 60')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add('name', 'GPIO18', 100, None, SensorsUtils.TEMP_CELSIUS)
+            addon.add({"name": 'name', "gpio": 'GPIO18', "interval": 100, "offset": None, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "offset" is missing')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.add('name', 'GPIO18', 100, 0, None)
+            addon.add({"name": 'name', "gpio": 'GPIO18', "interval": 100, "offset": 0, "offset_unit": None})
         self.assertEqual(cm.exception.message, 'Parameter "offset_unit" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'GPIO18', 100, 0, '')
+            addon.add({"name": 'name', "gpio": 'GPIO18', "interval": 100, "offset": 0, "offset_unit": ''})
         self.assertEqual(cm.exception.message, 'Parameter "offset_unit" is invalid (specified="")')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.add('name', 'GPIO18', 100, 0, 'invalid')
+            addon.add({"name": 'name', "gpio": 'GPIO18', "interval": 100, "offset": 0, "offset_unit": 'invalid'})
         self.assertEqual(cm.exception.message, 'Offset_unit value must be either "celsius" or "fahrenheit"')
 
     def test_update_from_temperature_sensor(self):
@@ -2226,7 +2229,7 @@ class Dht22SensorTests(unittest.TestCase):
         addon._search_device = search_device_found_by_uuid
         addon._get_dht22_devices = Mock(return_value=(temp, hum))
 
-        res = addon.update(temp, 'newname', 120, 5, SensorsUtils.TEMP_FAHRENHEIT)
+        res = addon.update(temp, {"name": "newname", "interval": 120, "offset": 5, "offset_unit": SensorsUtils.TEMP_FAHRENHEIT})
         self.assertTrue('gpios' in res, 'Gpios should be part of result')
         self.assertEqual(len(res['gpios']), 1, 'Gpios should contains value')
         self.assertTrue('sensors' in res, 'Sensors should be part of result')
@@ -2304,7 +2307,7 @@ class Dht22SensorTests(unittest.TestCase):
         addon._search_device = search_device_found_by_uuid
         addon._get_dht22_devices = lambda n: (temp, hum)
 
-        res = addon.update(hum, 'newname', 120, 5, SensorsUtils.TEMP_FAHRENHEIT)
+        res = addon.update(hum, {"name": "newname", "interval": 120, "offset": 5, "offset_unit": SensorsUtils.TEMP_FAHRENHEIT})
         self.assertTrue('gpios' in res, 'Gpios should be part of result')
         self.assertEqual(len(res['gpios']), 1, 'Gpios should contains value')
         self.assertTrue('sensors' in res, 'Sensors should be part of result')
@@ -2366,40 +2369,40 @@ class Dht22SensorTests(unittest.TestCase):
         default_search_device = addon._search_device
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(None, 'name', 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(None, {"name": "name", "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "sensor" is missing')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(temp, None, 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(temp, {"name": None, "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "name" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(temp, '', 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(temp, {"name": "", "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "name" is invalid (specified="")')
         addon._search_device = Mock(return_value={'name': 'name'})
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(temp, 'newname', 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(temp, {"name": "newname", "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Name "newname" is already used')
         addon._search_device = default_search_device
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(temp, 'name', None, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(temp, {"name": "name", "interval": None, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "interval" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(temp, 'name', 59, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(temp, {"name": "name", "interval": 59, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Interval must be greater or equal than 60')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(temp, 'name', 100, None, SensorsUtils.TEMP_CELSIUS)
+            addon.update(temp, {"name": "name", "interval": 100, "offset": None, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "offset" is missing')
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(temp, 'name', 100, 0, None)
+            addon.update(temp, {"name": "name", "interval": 100, "offset": 0, "offset_unit": None})
         self.assertEqual(cm.exception.message, 'Parameter "offset_unit" is missing')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(temp, 'name', 100, 0, '')
+            addon.update(temp, {"name": "name", "interval": 100, "offset": 0, "offset_unit": ''})
         self.assertEqual(cm.exception.message, 'Parameter "offset_unit" is invalid (specified="")')
         with self.assertRaises(InvalidParameter) as cm:
-            addon.update(temp, 'name', 100, 0, 'invalid')
+            addon.update(temp, {"name": "name", "interval": 100, "offset": 0, "offset_unit": 'invalid'})
         self.assertEqual(cm.exception.message, 'Offset_unit value must be either "celsius" or "fahrenheit"')
 
     def test_delete(self):
@@ -2449,7 +2452,7 @@ class Dht22SensorTests(unittest.TestCase):
         addon = self.get_addon()
 
         with self.assertRaises(MissingParameter) as cm:
-            addon.update(None, 'name', 100, 0, SensorsUtils.TEMP_CELSIUS)
+            addon.update(None, {"name": 'name', "interval": 100, "offset": 0, "offset_unit": SensorsUtils.TEMP_CELSIUS})
         self.assertEqual(cm.exception.message, 'Parameter "sensor" is missing')
 
     def test_get_task(self):
