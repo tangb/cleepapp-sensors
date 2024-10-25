@@ -89,33 +89,33 @@ class SensorDht22(Sensor):
             [
                 {
                     "name": "name",
-                    "value": params.name,
+                    "value": params.get("name"),
                     "type": str,
                     "validator": lambda val: self._search_device("name", val) is None,
-                    "message": f'Name "{params.name}" is already used',
+                    "message": f'Name "{params.get("name")}" is already used',
                 },
                 {
                     "name": "gpio",
-                    "value": params.gpio,
+                    "value": params.get("gpio"),
                     "type": str,
-                    "validator": lambda val: params.gpio not in assigned_gpios,
-                    "message": f'Gpio "{params.gpio}" is already used',
+                    "validator": lambda val: params.get("gpio") not in assigned_gpios,
+                    "message": f'Gpio "{params.get("gpio")}" is already used',
                 },
                 {
                     "name": "interval",
-                    "value": params.interval,
+                    "value": params.get("interval"),
                     "type": int,
                     "validator": lambda val: val >= 60,
                     "message": "Interval must be greater or equal than 60",
                 },
                 {
                     "name": "offset",
-                    "value": params.offset,
+                    "value": params.get("offset"),
                     "type": int,
                 },
                 {
                     "name": "offset_unit",
-                    "value": params.offset_unit,
+                    "value": params.get("offset_unit"),
                     "type": str,
                     "validator": lambda val: val
                     in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
@@ -124,38 +124,38 @@ class SensorDht22(Sensor):
             ]
         )
         # TODO add new validator in Cleep core
-        if params.gpio not in self.raspi_gpios:
+        if params.get("gpio") not in self.raspi_gpios:
             raise InvalidParameter(
-                f'Gpio "{params.gpio}" does not exist for this raspberry pi'
+                f'Gpio "{params.get("gpio")}" does not exist for this raspberry pi'
             )
 
         gpio_data = {
-            "name": params.name + "_dht22",
-            "gpio": params.gpio,
+            "name": params.get("name") + "_dht22",
+            "gpio": params.get("gpio"),
             "mode": "input",
             "keep": False,
             "inverted": False,
         }
 
         temperature_data = {
-            "name": params.name,
+            "name": params.get("name"),
             "gpios": [],
             "type": self.TYPE_TEMPERATURE,
             "subtype": self.SUBTYPE,
-            "interval": params.interval,
-            "offset": params.offset,
-            "offsetunit": params.offset_unit,
+            "interval": params.get("interval"),
+            "offset": params.get("offset"),
+            "offsetunit": params.get("offset_unit"),
             "lastupdate": int(time.time()),
             "celsius": None,
             "fahrenheit": None,
         }
 
         humidity_data = {
-            "name": params.name,
+            "name": params.get("name"),
             "gpios": [],
             "type": self.TYPE_HUMIDITY,
             "subtype": self.SUBTYPE,
-            "interval": params.interval,
+            "interval": params.get("interval"),
             "lastupdate": int(time.time()),
             "humidity": None,
         }
@@ -205,27 +205,27 @@ class SensorDht22(Sensor):
                 },
                 {
                     "name": "name",
-                    "value": params.name,
+                    "value": params.get("name"),
                     "type": str,
                     "validator": lambda val: sensor["name"] == val
                     or self._search_device("name", val) is None,
-                    "message": f'Name "{params.name}" is already used',
+                    "message": f'Name "{params.get("name")}" is already used',
                 },
                 {
                     "name": "interval",
-                    "value": params.interval,
+                    "value": params.get("interval"),
                     "type": int,
                     "validator": lambda val: val >= 60,
                     "message": "Interval must be greater or equal than 60",
                 },
                 {
                     "name": "offset",
-                    "value": params.offset,
+                    "value": params.get("offset"),
                     "type": int,
                 },
                 {
                     "name": "offset_unit",
-                    "value": params.offset_unit,
+                    "value": params.get("offset_unit"),
                     "type": str,
                     "validator": lambda val: val
                     in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
@@ -240,11 +240,11 @@ class SensorDht22(Sensor):
 
         # reconfigure gpio
         gpios = []
-        if old_name != params.name:
+        if old_name != params.get("name"):
             gpios.append(
                 {
                     "uuid": (temperature_device or humidity_device)["gpios"][0]["uuid"],
-                    "name": params.name + "_dht22",
+                    "name": params.get("name") + "_dht22",
                     "mode": "input",
                     "keep": False,
                     "inverted": False,
@@ -254,16 +254,16 @@ class SensorDht22(Sensor):
         # temperature sensor
         sensors = []
         if temperature_device:
-            temperature_device["name"] = params.name
-            temperature_device["interval"] = params.interval
-            temperature_device["offset"] = params.offset
-            temperature_device["offsetunit"] = params.offset_unit
+            temperature_device["name"] = params.get("name")
+            temperature_device["interval"] = params.get("interval")
+            temperature_device["offset"] = params.get("offset")
+            temperature_device["offsetunit"] = params.get("offset_unit")
             sensors.append(temperature_device)
 
         # humidity sensor
         if humidity_device:
-            humidity_device["name"] = params.name
-            humidity_device["interval"] = params.interval
+            humidity_device["name"] = params.get("name")
+            humidity_device["interval"] = params.get("interval")
             sensors.append(humidity_device)
 
         return {

@@ -71,36 +71,36 @@ class SensorOnewire(Sensor):
         self._check_parameters([
             {
                 "name": "name",
-                "value": params.name,
+                "value": params.get("name"),
                 "type": str,
                 "validator": lambda val: self._search_device("name", val) is None,
-                "message": f'Name "{params.name}" is already used',
+                "message": f'Name "{params.get("name")}" is already used',
             },
             {
                 "name": "device",
-                "value": params.device,
+                "value": params.get("device"),
                 "type": str,
             },
             {
                 "name": "path",
-                "value": params.path,
+                "value": params.get("path"),
                 "type": str,
             },
             {
                 "name": "interval",
-                "value": params.interval,
+                "value": params.get("interval"),
                 "type": int,
                 "validator": lambda val: val >= 60,
                 "message": "Interval must be greater or equal than 60",
             },
             {
                 "name": "offset",
-                "value": params.offset,
+                "value": params.get("offset"),
                 "type": int
             },
             {
                 "name": "offset_unit",
-                "value": params.offset_unit,
+                "value": params.get("offset_unit"),
                 "type": str,
                 "validator": lambda val: val in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
                 "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
@@ -116,7 +116,7 @@ class SensorOnewire(Sensor):
 
         # prepare sensor
         sensor_data = {
-            "name": params.name,
+            "name": params.get("name"),
             "gpios": [
                 {
                     "gpio": gpio_device["gpio"],
@@ -124,13 +124,13 @@ class SensorOnewire(Sensor):
                     "pin": gpio_device["pin"],
                 }
             ],
-            "device": params.device,
-            "path": params.path,
+            "device": params.get("device"),
+            "path": params.get("path"),
             "type": self.TYPE_TEMPERATURE,
             "subtype": self.SUBTYPE,
-            "interval": params.interval,
-            "offset": params.offset,
-            "offsetunit": params.offset_unit,
+            "interval": params.get("interval"),
+            "offset": params.get("offset"),
+            "offsetunit": params.get("offset_unit"),
             "lastupdate": int(time.time()),
             "celsius": None,
             "fahrenheit": None,
@@ -183,26 +183,26 @@ class SensorOnewire(Sensor):
             },
             {
                 "name": "name",
-                "value": params.name,
+                "value": params.get("name"),
                 "type": str,
                 "validator": lambda val: val == sensor["name"] or self._search_device("name", val) is None,
-                "message": f'Name "{params.name}" is already used',
+                "message": f'Name "{params.get("name")}" is already used',
             },
             {
                 "name": "interval",
-                "value": params.interval,
+                "value": params.get("interval"),
                 "type": int,
                 "validator": lambda val: val >= 60,
                 "message": "Interval must be greater or equal than 60",
             },
             {
                 "name": "offset",
-                "value": params.offset,
+                "value": params.get("offset"),
                 "type": int
             },
             {
                 "name": "offset_unit",
-                "value": params.offset_unit,
+                "value": params.get("offset_unit"),
                 "type": str,
                 "validator": lambda val: val in (SensorsUtils.TEMP_CELSIUS, SensorsUtils.TEMP_FAHRENHEIT),
                 "message": 'Offset_unit value must be either "celsius" or "fahrenheit"',
@@ -210,10 +210,10 @@ class SensorOnewire(Sensor):
         ])
 
         # update sensor
-        sensor["name"] = params.name
-        sensor["interval"] = params.interval
-        sensor["offset"] = params.offset
-        sensor["offsetunit"] = params.offset_unit
+        sensor["name"] = params.get("name")
+        sensor["interval"] = params.get("interval")
+        sensor["offset"] = params.get("offset")
+        sensor["offsetunit"] = params.get("offset_unit")
 
         return {
             "gpios": [],

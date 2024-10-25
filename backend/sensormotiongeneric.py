@@ -57,47 +57,47 @@ class SensorMotionGeneric(Sensor):
         self._check_parameters([
             {
                 'name': 'name',
-                'value': params.name,
+                'value': params.get("name"),
                 'type': str,
-                'validator': lambda val: self._search_device("name", params.name) is None,
-                'message': f'Name "{params.name}" is already used',
+                'validator': lambda val: self._search_device("name", params.get("name")) is None,
+                'message': f'Name "{params.get("name")}" is already used',
             },
             {
                 'name': 'gpio',
-                'value': params.gpio,
+                'value': params.get("gpio"),
                 'type': str,
-                'validator': lambda val: params.gpio not in assigned_gpios,
-                'message': f'Gpio "{params.gpio}" is already used',
+                'validator': lambda val: params.get("gpio") not in assigned_gpios,
+                'message': f'Gpio "{params.get("gpio")}" is already used',
             },
-            {'name': 'inverted', 'value': params.inverted, 'type': bool},
+            {'name': 'inverted', 'value': params.get("inverted"), 'type': bool},
         ])
         # TODO add new validator directly in Cleep core
         self.logger.debug('Gpios: %s', self.raspi_gpios)
-        if params.gpio not in self.raspi_gpios:
-            raise InvalidParameter(f'Gpio "{params.gpio}" does not exist for this raspberry pi')
+        if params.get("gpio") not in self.raspi_gpios:
+            raise InvalidParameter(f'Gpio "{params.get("gpio")}" does not exist for this raspberry pi')
 
         # configure gpio
         gpio_data = {
-            "name": params.name + "_motion",
-            "gpio": params.gpio,
+            "name": params.get("name") + "_motion",
+            "gpio": params.get("gpio"),
             "mode": "input",
             "keep": False,
-            "inverted": params.inverted,
+            "inverted": params.get("inverted"),
         }
 
         sensor_data = {
-            "name": params.name,
+            "name": params.get("name"),
             "gpios": [],
             "type": self.TYPE_MOTION,
             "subtype": self.SUBTYPE,
             "on": False,
-            "inverted": params.inverted,
+            "inverted": params.get("inverted"),
             "lastupdate": 0,
             "lastduration": 0,
         }
 
         # read current gpio value
-        resp = self.send_command("is_gpio_on", "gpios", {"gpio": params.gpio})
+        resp = self.send_command("is_gpio_on", "gpios", {"gpio": params.get("gpio")})
         if not resp.error:
             sensor_data["on"] = resp.data
         sensor_data["lastupdate"] = int(time.time())
@@ -145,24 +145,24 @@ class SensorMotionGeneric(Sensor):
             },
             {
                 'name': 'name',
-                'value': params.name,
+                'value': params.get("name"),
                 'type': str,
-                'validator': lambda val: val == sensor['name'] or self._search_device("name", params.name) is None,
-                'message': f'Name "{params.name}" is already used',
+                'validator': lambda val: val == sensor['name'] or self._search_device("name", params.get("name")) is None,
+                'message': f'Name "{params.get("name")}" is already used',
             },
-            {'name': 'inverted', 'value': params.inverted, 'type': bool},
+            {'name': 'inverted', 'value': params.get("inverted"), 'type': bool},
         ])
 
         gpio_data = {
             "uuid": sensor["gpios"][0]["uuid"],
-            "name": params.name + "_motion",
+            "name": params.get("name") + "_motion",
             "keep": False,
-            "inverted": params.inverted,
+            "inverted": params.get("inverted"),
         }
 
         # update sensor
-        sensor["name"] = params.name
-        sensor["inverted"] = params.inverted
+        sensor["name"] = params.get("name")
+        sensor["inverted"] = params.get("inverted")
 
         return {
             "gpios": [

@@ -354,7 +354,7 @@ class Sensors(CleepModule):
         gpio_devices = []
         try:
             self.logger.debug('Addon "%s" add with data: %s', addon.__class__.__name__, data)
-            (gpios, sensors) = addon.add(**data).values()
+            (gpios, sensors) = addon.add(data).values()
             if not isinstance(gpios, list) or not isinstance(sensors, list): # pragma: no cover
                 raise TypeError("Invalid gpios or sensors type. Must be a list")
 
@@ -514,8 +514,7 @@ class Sensors(CleepModule):
         gpio_devices = []
         try:
             # prepare data mixing all params from all sensors
-            data["sensor"] = sensor
-            (gpios, sensors) = addon.update(**data).values()
+            (gpios, sensors) = addon.update(sensor, data).values()
             if not isinstance(gpios, list) or not isinstance(sensors, list): # pragma: no cover
                 raise TypeError("Invalid gpios or sensors type. Must be a list")
 
