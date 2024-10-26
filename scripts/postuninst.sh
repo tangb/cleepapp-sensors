@@ -8,6 +8,5 @@ trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
 trap 'echo "\"${last_command}\" command failed with exit code $?."' ERR
 
 # main
-apt-get -y -q purge wiringpi
 rm -rf /usr/local/bin/dht22 || true
 

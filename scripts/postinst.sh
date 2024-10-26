@@ -8,8 +8,6 @@ trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
 trap 'echo "\"${last_command}\" command failed with exit code $?."' ERR
 
 # main
-apt-get update
-apt-get -y -q install wiringpi
-chmod +x dht22
 cp -f dht22 /usr/local/bin/
+chmod +x /usr/local/bin/dht22
 
